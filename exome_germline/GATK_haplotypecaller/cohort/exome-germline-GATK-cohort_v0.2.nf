@@ -30,11 +30,11 @@ process BaseRecalibrator {
   script:
   """
   gatk BaseRecalibrator \
-  -I $pair_read_4 \
-  -R /var/spool/mail/hg38/UCSC/WholeGenomeFasta/genome.fa \
-  --known-sites /var/spool/mail/hg38/GATK/germline_resource/Homo_sapiens_assembly38.dbsnp138.vcf \
-  --known-sites /var/spool/mail/hg38/GATK/germline_resource/1000G_phase1.snps.high_confidence.hg38.vcf.gz \
-  --known-sites /var/spool/mail/hg38/GATK/germline_resource/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz \
+	-I ${pair_read_4} \
+  -R $genome_fasta \
+  --known-sites $GATK_dbsnp138 \
+  --known-sites $GATK_1000G \
+  --known-sites $GATK_mills \
   -O ${pair_read_4.simpleName}_calibration.table
   """
 }
@@ -49,7 +49,7 @@ process applyBaseRecalibrator {
   script:
   """
   gatk ApplyBQSR \
-  -R /var/spool/mail/hg38/UCSC/WholeGenomeFasta/genome.fa \
+  -R $genome_fasta \
   -I ${pair_read_6} \
   --bqsr-recal-file ${pair_read_5} \
   -O ${pair_read_6.simpleName}.BQSR.bam
@@ -66,7 +66,7 @@ process haplotypeCaller {
   script:
   """
   gatk HaplotypeCaller \
-  -R /var/spool/mail/hg38/UCSC/WholeGenomeFasta/genome.fa \
+  -R $genome_fasta \
   -I ${bam} \
   --read-index ${index} \
   -O ${bam.simpleName}.g.vcf.gz \
@@ -96,8 +96,8 @@ process genotypeVCF {
   script:
   """
   gatk GenotypeGVCFs \
-  -R /var/spool/mail/hg38/UCSC/WholeGenomeFasta/genome.fa \
-  -V ${combing}
+  -R $genome_fasta \
+  -V ${combine}
   -O ${combine}.genotype.vcf
   """
 }
@@ -127,7 +127,7 @@ process CNNscoreVariants {
   """
   gatk CNNScoreVariants \
   -V ${vcf} \
-  -R /var/spool/mail/hg38/UCSC/WholeGenomeFasta/genome.fa \
+  -R $genome_fasta \
   -O ${vcf.simpleName}.vcf \
   --read-index ${idx}
   """
@@ -143,61 +143,13 @@ process FilterVariantTranches {
   """
   gatk FilterVariantTranches \
   -V ${vcf} \
-  --resource /var/spool/mail/hg38/GATK/germline_resource/Homo_sapiens_assembly38.dbsnp138.vcf \
-  --resource /var/spool/mail/hg38/GATK/germline_resource/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz \
-  --resource /var/spool/mail/hg38/GATK/germline_resource/hapmap_3.3.hg38.vcf.gz \
-  --resource /var/spool/mail/hg38/GATK/germline_resource/1000G_omni2.5.hg38.vcf.gz \
+	--resource $GATK_dbsnp138 \
+  --resource $GATK_1000G \
+  --resource $GATK_mills \
+	--resource $GATK_hapmap \
   --info-key CNN_1D \
   --snp-tranche 99.95 \
   --indel-tranche 99.4 \
   -O "${vcf.simpleName}_filtered.vcf"
-  """
-}
-
-process functotator {
-  storeDir "$baseDir/output/functotator"
-  input:
-  file vcf from vcffilter_ch
-  output:
-  file "${vcf.baseName}.maf" into maf_ch
-  script:
-  """
-  gatk Funcotator \
-   -R /var/spool/mail/Homo_sapiens_assembly38.fasta \
-   -V ${vcf} \
-   -O ${vcf.baseName}.maf \
-   --output-file-format MAF \
-   --data-sources-path /var/spool/mail/GATK_functotator_files/funcotator_dataSources.v1.6.20190124g \
-   --ref-version hg38
-  """
-}
-
-
-process process_maf {
-  storeDir "$baseDir/output/functotator/processed"
-  input:
-  file maf from maf_ch
-  output:
-  file "${maf.baseName}_nohead.maf" into maf2_ch
-  script:
-  """
-  awk '!/#/ {print}' ${maf} > ${maf.baseName}_nohead.maf
-  """
-}
-
-process multiqc{
-  storeDir "$baseDir/output/multiQC"
-  input:
-  val vcf from maf2_ch.collectFile()
-  output:
-  file "multiqc_report.html"
-
-  script:
-  """
-  for i in ${vcf}
-  do
-    cat \$i >> processed_samples_list.txt
-  done
-  multiqc $baseDir
   """
 }

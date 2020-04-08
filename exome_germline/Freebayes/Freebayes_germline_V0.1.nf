@@ -1,7 +1,7 @@
 /*
  * create a channel for fastq pairs
  */
-params.bam = "$baseDir/output/aligned_sorted/*_processed.bam"
+params.bam = "$baseDir/output/aligned_sorted/*.rename.bam"
 
 bam_ch = Channel .fromPath( params.bam )
 
@@ -29,7 +29,7 @@ process Freebayes {
   file "projectname_raw.vcf" into vcf_ch // inset $project name from config file
   script:
   """
-  freebayes ${bam} -f /var/spool/mail/hg38/UCSC/WholeGenomeFasta/genome.fa > projectname_raw.vcf
+  freebayes ${bam} -f /var/spool/mail/cgpwgs_ref/GRCh38/core_ref_GRCh38_hla_decoy_ebv/genome.fa > projectname_raw.vcf
   """
 }
 
