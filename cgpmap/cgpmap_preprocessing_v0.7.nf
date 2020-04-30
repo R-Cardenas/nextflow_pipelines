@@ -1,5 +1,5 @@
 /*
- * create a channel for fastq pairss
+ * create a channel for fastq pair
  */
 
 // Input Reads
