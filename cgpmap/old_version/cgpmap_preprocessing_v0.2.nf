@@ -134,3 +134,39 @@ process hybrid_stats {
   TARGET_INTERVALS=$target_interval
   """
 }
+
+workflow.onComplete {
+	// create log files and record output
+	log = """ echo ' Pipeline cgpmap v0.2 completed
+
+	cgpmap - completed
+	(reference = $cgpmap_genome)
+	(index = $cgpmap_index)
+	samsort - completed
+	picard pcr removal - completed
+	picard rename bam - completed
+	samtools bam index - completed
+	picard collect insert size - completed
+	picard collect HS stats - completed
+	(target_intervals = $target_interval)
+	(bait_intervals = $target_interval)
+	' >> log.txt
+	"""
+	println log.execute().text
+
+	// Send email user
+	sendMail( to: 'aft19qdu@uea.ac.uk',
+          subject: 'nextflow cgpmap pipeline',
+          body: 'Dear User, cgpmap has now completed successfully. Please find log file attached.',
+          attach: 'log.txt' )
+
+}
+
+workflow.onError {
+    println "Oops... Pipeline execution stopped with the following message: ${workflow.errorMessage}"
+
+		sendMail( to: 'aft19qdu@uea.ac.uk',
+	          subject: 'nextflow cgpmap pipeline - FAIL',
+	          body: 'Dear User, cgpmap has failed. Below is the error message: \n ${workflow.errorMessage}',
+	          attach: 'log.txt' )
+}

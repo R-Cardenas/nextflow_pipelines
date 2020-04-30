@@ -1,7 +1,9 @@
+
+
 /*
  * create a channel for fastq pairs
  */
-params.bam = "$baseDir/output/aligned_sorted/*.rename.bam"
+params.bam = "$baseDir/output/trim/merge_lanes/.rename.bam"
 
 Channel
 	.fromPath( params.bam )
@@ -23,6 +25,7 @@ println """\
 
          """
          .stripIndent()
+
 
 process Freebayes {
   storeDir "$baseDir/output/freebayes"
@@ -52,31 +55,19 @@ process vcf_filter {
 
 // needs samtools
 process zip {
-  storeDir "$baseDir/output/freebayes"
+  storeDir "$baseDir/output/VCF_collect"
 	input:
 	file zip from zip_ch
 	output:
-	file "${projectname}_filtered_freebaye.vcf.gz" into collect_ch
+	file "${zip}.gz" into index101_ch
 	script:
 	"""
 	bgzip ${zip}
 	"""
 }
 
-process collect_vcf {
-	storeDir "$baseDir/output/VCF_collect"
-	input:
-	file zip2 from collect_ch
-	output:
-	file "${projectname}_filtered_freebayes.vcf.gz" into index101_ch
-	script:
-	"""
-	cp ${zip2} $baseDir/output/VCF_collect/${projectname}_filtered_freebayes.vcf.gz
-	"""
-}
-
 //needs bcftools
-process index {
+process bam_index {
 	storeDir "$baseDir/output/VCF_collect"
 	input:
 	file vcf from index101_ch
@@ -86,4 +77,40 @@ process index {
 	"""
 	bcftools index ${vcf}
 	"""
+}
+
+workflow.onComplete {
+	// create log files and record output
+	process finish{
+		script:
+		""" echo ' Pipeline Freebayes germline v0.2 completed
+		Project: $projectname
+		Time: ${nextflow.timestamp}
+
+	 Freebayes - completed
+	 (Reference - $genome_fasta)
+	 VCFTools - completed
+	 (Parameters: "QUAL > 1 & QUAL / AO > 10 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1")
+	 Bgzip - completed
+	 BcfTools Index - completed
+	 ' >> $baseDir/${projectname}_log.txt
+
+	 mail -s "Freebayes successful" < $baseDir/${projectname}_log.txt
+	 """
+	}
+}
+
+workflow.onError {
+	process finish_error{
+		script:
+		""" echo 'Pipeline Freebayes FAILED
+		Project: $projectname
+		Time: ${nextflow.timestamp}
+
+		Error:
+		${workflow.errorMessage}' {input} >> $baseDir/${projectname}_error.txt
+
+	  mail -s "cgpMAP successful" {input} < $baseDir/${projectname}_error.txt
+	  """
+	}
 }

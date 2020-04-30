@@ -1,7 +1,7 @@
 /*
  * create a channel for bam files produced by cgpmap_processing pipeline
  */
-params.bam = "$baseDir/output2/cgpMAP/*.bam"
+params.bam = "$baseDir/output2/cgpMAP/*.rename.bam"
 params.index = "$baseDir/output2/cgpMAP/*.bam.bai"
 params.bas = "$baseDir/output2/cgpMAP/*.bam.bas"
 bam_ch = Channel .fromPath( params.bam )

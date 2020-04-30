@@ -1,0 +1,24 @@
+If you would like to use the Docker containers, install Docker on your system, then install the containers by executing the "install_docker.sh" script.
+
+To use the Singularity, you only need to install Singularity on your system. No further installation steps are required. By default the workflow runs Docker containers. Use the parameter "--container=singularity" to run Singularity containers.
+
+The containers were tested with Docker version 1.13.1 and Singularity version 2.6.1.
+
+Usage:
+  run.sh \
+    --control-uuid=UUID --control-bam=BAM_FILE \
+    --tumor-uuid=UUID --tumor-bam=BAM_FILE \
+    --delly-svs=BNDOUT_BEDPE_FILE \
+    --databases=DIRECTORY \
+    --output=DIRECTORY \
+    [--variants=cnv,indel,snv] [--container=docker|singularity] [--threads=8]
+
+Example:
+  run.sh \
+    --control-uuid=8ddfbc4e-9414-11e7-aa6f-c30b6701cea0 --control-bam=/some/path/ICGC_PCA001/alignments/control.bam \
+    --tumor-uuid=860b2720-9409-11e7-aa6f-c30b6701cea0 --tumor-bam=/some/path/ICGC_PCA001/alignments/tumor.bam \
+    --delly-svs=/some/path/ICGC_PCA001/delly/bndout/tumor_ICGC_PCA001_vs_control_ICGC_PCA001.bric_embl-delly_2-0-0.20180327.somatic.sv.bedpe.txt \
+    --databases=/some/path/dkfz_pipelines_database_files_2018-08-23/ \
+    --output=/some/path/ICGC_PCA001/dkfz_pipelines/
+
+If you do not want to run all workflows, you can select a subset by passing a comma-separated list of variant types ("cnv,indel,snv") to the run script using the "--variants" parameter.

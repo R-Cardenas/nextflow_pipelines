@@ -2,7 +2,7 @@
 /*
  * create a channel for bam files produced by cgpmap_processing pipeline
  */
-params.bam = "$baseDir/output/aligned_sorted/*_processed.bam"
+params.bam = "$baseDir/output/aligned_sorted/*.rename.bam"
 bam_ch = Channel .fromPath( params.bam )
 
 bam_ch.into { bam2_ch; bam3_ch }

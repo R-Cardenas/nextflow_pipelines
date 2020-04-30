@@ -2,7 +2,7 @@
 /*
  * create a channel for bam files produced by cgpmap_processing pipeline
  */
-params.bam = "$baseDir/output/aligned_sorted/*_processed.bam"
+params.bam = "$baseDir/output/aligned_sorted/*.rename.bam"
 bam_ch = Channel .fromPath( params.bam )
 
 bam_ch.into { bam2_ch; bam3_ch }
@@ -36,10 +36,10 @@ process BaseRecalibrator {
   """
   gatk BaseRecalibrator \
   -I $pair_read_4 \
-  -R /var/spool/mail/hg38/UCSC/WholeGenomeFasta/genome.fa \
-  --known-sites /var/spool/mail/hg38/GATK/germline_resource/Homo_sapiens_assembly38.dbsnp138.vcf \
-  --known-sites /var/spool/mail/hg38/GATK/germline_resource/1000G_phase1.snps.high_confidence.hg38.vcf.gz \
-  --known-sites /var/spool/mail/hg38/GATK/germline_resource/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz \
+	-R $genome_fasta \
+  --known-sites $GATK_dbsnp138 \
+  --known-sites $GATK_1000G \
+  --known-sites $GATK_mills \
   -O ${pair_read_4.simpleName}_calibration.table
   """
 }
@@ -54,7 +54,7 @@ process applyBaseRecalibrator {
   script:
   """
   gatk ApplyBQSR \
-  -R /var/spool/mail/hg38/UCSC/WholeGenomeFasta/genome.fa \
+	-R $genome_fasta \
   -I ${pair_read_6} \
   --bqsr-recal-file ${pair_read_5} \
   -O ${pair_read_6.simpleName}.BQSR.bam
@@ -66,19 +66,19 @@ process mutect2 {
   input:
   val x from tumor_ch
   val y from normal_ch
-  file "${x}_R1_001_BQSR.bam" from mutect2_1_ch
-  file "${y}_R1_001_BQSR.bam" from mutect2_2_ch
+  file "${x}.BQSR.bam" from mutect2_1_ch
+  file "${y}.BQSR.bam" from mutect2_2_ch
   output:
-  file "${x}vs${y}.vcf.gz" into filter_vcf_ch
+  val "${x}vs${y}.vcf.gz" into filter_vcf_ch
   script:
   """
   gatk Mutect2 \
-  -R /var/spool/mail/hg38/UCSC/WholeGenomeFasta/genome.fa \
-  -I ${x}_R1_001_BQSR.bam \
-  -I ${y}_R1_001_BQSR.bam \
+	-R $genome_fasta \
+  -I ${x}.BQSR.bam \
+  -I ${y}.BQSR.bam \
   -normal ${y}_R1_001_BQSR.bam \
-  --germline-resource /var/spool/mail/hg38/GATK/GATK_pon_germline_resource_hg38/somatic-hg38_af-only-gnomad.hg38.vcf \
-  --panel-of-normal /var/spool/mail/hg38/GATK/GATK_pon_germline_resource_hg38/somatic-hg38_1000g_pon.hg38.vcf \
+  --germline-resource $Mutect2_germline \
+  --panel-of-normal $Mutect2_PoN \
   -O ${x}vs${y}.vcf.gz
     """
 }
@@ -92,7 +92,7 @@ process filter_vcf {
 	script:
 	"""
 	gatk FilterMutectCalls \
-	-R /var/spool/mail/hg38/UCSC/WholeGenomeFasta/genome.fa \
+	-R $genome_fasta \
 	-V ${filtered}  \
 	-O ${filtered.simpleName}.filtered.vcf
 	"""
@@ -107,7 +107,7 @@ process functotator {
   script:
   """
   gatk Funcotator \
-   -R /var/spool/mail/Homo_sapiens_assembly38.fasta \
+	 -R $genome_fasta \
    -V ${vcf} \
    -O ${vcf.baseName}.maf \
    --output-file-format MAF \

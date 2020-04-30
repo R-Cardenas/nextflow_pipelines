@@ -37,15 +37,29 @@ process awks_stats {
   file "ID_${projectname}.txt" into id_ch
   script:
   """
-  awk '$1 == "SN" {print}' ${vchk} > SN_${projectname}.txt
-  awk '$1 == "ID" {print}' ${vchk} > ID_${projectname}.txt
+  awk '\$1 == "SN" {print}' ${vchk} > SN_${projectname}.txt
+  awk '\$1 == "ID" {print}' ${vchk} > ID_${projectname}.txt
   """
 }
 
-process plots {
+//  ## put inside container and chmod +x it the bcftools
+process overlap_stats {
   storeDir "$baseDir/output/VCF_collect"
+  input:
+  file snps from sn_ch
+  file id from id_ch
+  output:
+  file "indel_venn_${projectname}.jpg"
+  file "snp_venn_${projectname}.jpg"
+  script:
+  """
+  ${baseDir}/bcftools_stat_plot.R \
+  -I ${snps} \
+  -D ${id} \
+  -o snp_venn_${projectname}.jpg \
+  -O snp_venn_${projectname}.jpg
+  """
 }
-
 
 // add bcftools singularity and targets / regions files for exome
 process isec {
@@ -66,7 +80,7 @@ process isec {
 
 // add to config
 process functotator {
-  storeDir "$baseDir/output/hg38_decoy/GATK_germline_single/gatk_germline_single/functotator"
+  storeDir "$baseDir/output/functotator"
   input:
   file vcf from functotator_ch
   output:
@@ -82,5 +96,53 @@ process functotator {
    --output-file-format MAF \
    --data-sources-path /var/spool/mail/GATK_functotator_files/funcotator_dataSources.v1.6.20190124g \
    --ref-version hg38
+  """
+}
+
+process maf_header {
+  storeDir "$baseDir/output/functotator"
+  input:
+  file maf from maf_ch
+  output:
+  file "${maf.simpleName}_noheader.maf" into allele_frequency_ch
+  script:
+  """
+  awk '!/\\#/' ${maf} > ${maf.simpleName}_noheader.maf
+  """
+}
+
+process gnomAD_AF {
+  storeDir "$baseDir/output/functotator"
+  input:
+  file maf from allele_frequency_ch
+  output:
+  file "${projectname}_filtered.maf" into maftools_ch
+  script:
+  """
+  ./gnomAD_AF_MAF.R \
+  -f ${maf} \
+  -E $AF_group1 \
+  -AF $AF1 \
+  -x $AF_group2 \
+  -y $AF2 \
+  -o $projectname \
+  -DP $DP
+  """
+}
+
+process maftools {
+  storeDir "$baseDir/output/functotator"
+  input:
+  file maf from maftools_ch
+  output:
+  file "${projectname}_variant_summary.jpg"
+  file "${projectname}_oncoplot.jpg"
+  file "${projectname}_titv.jpg"
+  file "${projectname}_VAF.jpg"
+  script:
+  """
+  ./maftools.R \
+  -f ${maf}
+  -o $projectname
   """
 }
