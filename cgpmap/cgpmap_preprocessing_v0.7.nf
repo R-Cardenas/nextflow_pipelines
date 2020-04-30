@@ -55,14 +55,14 @@ process fqtools{
 	file read1 from read7_ch
 	file read2 from read12_ch
 	output:
-	file "*config.yaml" into yaml_ch
+	file "${read1}_fastq_config.yaml" into yaml_ch
 	script:
 	"""
 	fqtools -d header ${read1} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${read1.simpleName}.txt
 	fqtools -d header ${read2} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${read2.simpleName}.txt
 
 	python $baseDir/fastq2config_cgpmap.py --fq1 ${read1.simpleName}.txt --fq2 ${read1.simpleName}.txt \
-	--n1 ${read1} --n2 ${read2}
+	--n1 ${read1} --n2 ${read2} --o ${read1.simpleName}_fastq_config.yaml
 	"""
 }
 
@@ -88,7 +88,8 @@ process cgpMAP {
 	-g $yaml \
   ${read1} ${read2}
 
-	mv \$name.bam ${read1.simpleName}.bam
+	mv $baseDir/output/cgpMAP/${read1.simpleName}/*.bam \
+	$baseDir/output/cgpMAP/${read1.simpleName}/${read1.simpleName}.bam
   """
 }
 
