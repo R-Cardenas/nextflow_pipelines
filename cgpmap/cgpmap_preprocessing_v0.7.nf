@@ -55,7 +55,7 @@ process fqtools{
 	file read1 from read7_ch
 	file read2 from read12_ch
 	output:
-	file "${read1}_fastq_config.yaml" into yaml_ch
+	file "${read1.simpleName}_fastq_config.yaml" into yaml_ch
 	script:
 	"""
 	fqtools -d header ${read1} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${read1.simpleName}.txt
@@ -114,7 +114,7 @@ process picard_pcr_removal {
   input:
   file bam from dup_ch
   output:
-  file "${bam.simpleName}.rmd.bam" into (index1_ch, index_2ch, hs_ch, bam10_ch, bam11_ch)
+  file "${bam.simpleName}.rmd.bam" into (index1_ch, index_2ch, hs_ch, bam10_ch, bam11_ch, contam_ch)
 	file "${bam.simpleName}.log"
   script:
   """
@@ -130,13 +130,14 @@ process bam_index {
   input:
   file bam from index1_ch
   output:
-  file "${bam.simpleName}.rename.bai"
+  file "${bam}.bai" into index2_ch
 
   script:
   """
 	mkdir -p tmp
   picard BuildBamIndex \
 	I=${bam} \
+	O=${bam}.bai \
 	TMP_DIR=tmp
 	rm -fr tmp
   """
@@ -206,7 +207,24 @@ process merge_lanes{
 	module add python/anaconda/4.2/3.5
 	$baseDir/bin/python merge_bam_lanes.py
 	"""
+}
 
+process contamination{
+	storeDir "$baseDir/output/trim/merge_lanes"
+	input:
+	file bam from contam_ch
+	file idx from index2_ch
+	output:
+	file "e.bam"
+	script:
+	"""
+	/VerifyBamID/bin/VerifyBamID \
+	--UDPath /VerifyBamID/resource/1000g.phase3.100k.b38.vcf.gz.dat.UD \
+	--BedPath /VerifyBamID/resource/1000g.phase3.100k.b38.vcf.gz.dat.bed \
+	--MeanPath /VerifyBamID/resource/1000g.phase3.100k.b38.vcf.gz.dat.mu \
+	--Reference ${genome_fasta} \
+	--BamFile ${bam}
+	"""
 }
 
 

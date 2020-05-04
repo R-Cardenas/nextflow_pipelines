@@ -62,7 +62,7 @@ PU2 = "    PU: " + f2_list[2] + "." + f2_list[3] + "\n"
 # ## Forming the final YAML file for cgpmap and save file
 yaml = SM + RG + FQ1 + PL + LB1 + PU1 + FQ2 + PL + LB2 + PU2
 # print(yaml)
-filename  = o1 + "_fastq_config.yaml"
+filename  = o1
 f= open(filename,"w+")
 f.write(yaml)
 # ## Rationale for using seq primer and sample id for LB input
