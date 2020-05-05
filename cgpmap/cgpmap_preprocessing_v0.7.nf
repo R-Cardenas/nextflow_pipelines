@@ -3,8 +3,8 @@
  */
 
 // Input Reads
-//params.read1 = "/gpfs/afm/cg_pipelines/Datasets/Cholesteatoma batch 2/release_noclean/RawData/**/*{1,2}.fq.gz"
-params.read1 = "$baseDir/input/*{1,2}.fq.gz"
+params.read1 = "/gpfs/afm/cg_pipelines/Datasets/Cholesteatoma batch 2/release_noclean/RawData/**/*{1,2}.fq.gz"
+//params.read1 = "$baseDir/input/*{1,2}.fq.gz"
 
 read1_ch = Channel .fromFilePairs( params.read1 )
 read1_ch.into { read2_ch; read3_ch }
@@ -50,34 +50,36 @@ process trim_galore{
 }
 
 process fqtools{
-	storeDir "$baseDir/output/cgpMAP/${read1.simpleName}/fqtools-config"
+	storeDir "$baseDir/output/cgpMAP/trimmomatic"
 	input:
 	file read1 from read7_ch
 	file read2 from read12_ch
 	output:
-	file "${read1.simpleName}_fastq_config.yaml" into yaml_ch
+	file "${read1}.yaml" into yaml_ch
 	script:
 	"""
 	fqtools -d header ${read1} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${read1.simpleName}.txt
 	fqtools -d header ${read2} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${read2.simpleName}.txt
 
 	python $baseDir/fastq2config_cgpmap.py --fq1 ${read1.simpleName}.txt --fq2 ${read1.simpleName}.txt \
-	--n1 ${read1} --n2 ${read2} --o ${read1.simpleName}_fastq_config.yaml
+	--n1 ${read1} --n2 ${read2} --o ${read1}.yaml
 	"""
 }
 
 process cgpMAP {
-  storeDir "$baseDir/output/cgpMAP/${read1.simpleName}"
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	storeDir "$baseDir/output/cgpMAP/${read1.simpleName}"
   input:
 	val read1 from read5_ch
 	val read2 from read10_ch
-	val yaml from yaml_ch
+	val yaml from yaml_ch.collect()
   output:
   file "*.bam" into cgp_ch
   script:
   """
 	echo 'fq1: ${read1} fq2: ${read2} bam_name: ${read1.simpleName}' >> cgpmap_samples.log
-	name=\$(sed -n -e 's/^.*SM: //p' ${yaml})
+	name=\$(echo '${read1}' | sed -e 's/_.*//' -e 's/.*\\///')
 
   ds-cgpmap.pl  \
   -outdir $baseDir/output/cgpMAP/${read1.simpleName} \
@@ -85,7 +87,7 @@ process cgpMAP {
   -i $cgpmap_index \
   -s \$name \
   -t 5 \
-	-g $yaml \
+	-g ${read1}.yaml \
   ${read1} ${read2}
 
 	mv $baseDir/output/cgpMAP/${read1.simpleName}/*.bam \
@@ -114,7 +116,7 @@ process picard_pcr_removal {
   input:
   file bam from dup_ch
   output:
-  file "${bam.simpleName}.rmd.bam" into (index1_ch, index_2ch, hs_ch, bam10_ch, bam11_ch, contam_ch)
+  file "${bam.simpleName}.rmd.bam" into (index1_ch, index_2ch, hs_ch, bam10_ch, bam11_ch)
 	file "${bam.simpleName}.log"
   script:
   """
@@ -130,7 +132,7 @@ process bam_index {
   input:
   file bam from index1_ch
   output:
-  file "${bam}.bai" into index2_ch
+  file "${bam}.bai"
 
   script:
   """
@@ -206,24 +208,6 @@ process merge_lanes{
 	"""
 	module add python/anaconda/4.2/3.5
 	$baseDir/bin/python merge_bam_lanes.py
-	"""
-}
-
-process contamination{
-	storeDir "$baseDir/output/trim/merge_lanes"
-	input:
-	file bam from contam_ch
-	file idx from index2_ch
-	output:
-	file "e.bam"
-	script:
-	"""
-	/VerifyBamID/bin/VerifyBamID \
-	--UDPath /VerifyBamID/resource/1000g.phase3.100k.b38.vcf.gz.dat.UD \
-	--BedPath /VerifyBamID/resource/1000g.phase3.100k.b38.vcf.gz.dat.bed \
-	--MeanPath /VerifyBamID/resource/1000g.phase3.100k.b38.vcf.gz.dat.mu \
-	--Reference ${genome_fasta} \
-	--BamFile ${bam}
 	"""
 }
 
