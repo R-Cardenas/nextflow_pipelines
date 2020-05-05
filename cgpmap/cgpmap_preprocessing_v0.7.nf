@@ -12,7 +12,6 @@ read1_ch.into { read2_ch; read3_ch }
 params.csv = "$baseDir/bin/williams_batch2_info.csv"
 csv_ch = Channel .fromPath( params.csv )
 
-
 println """\
 	\
 	\
