@@ -49,7 +49,7 @@ process trim_galore{
 }
 
 process fqtools{
-	storeDir "$baseDir/output/cgpMAP/trimmomatic"
+	scratch true
 	input:
 	file read1 from read7_ch
 	file read2 from read12_ch
@@ -96,7 +96,9 @@ process cgpMAP {
 
 
 process sam_sort {
-  storeDir "$baseDir/output/trim/aligned_sorted"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  scratch true
   input:
   file bam from cgp_ch
   output:
@@ -111,7 +113,9 @@ process sam_sort {
 }
 
 process picard_pcr_removal {
-  storeDir "$baseDir/output/trim/aligned_sorted"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  scratch true
   input:
   file bam from dup_ch
   output:
@@ -127,6 +131,8 @@ process picard_pcr_removal {
 }
 
 process bam_index {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/trim/aligned_sorted"
   input:
   file bam from index1_ch

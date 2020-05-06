@@ -26,7 +26,7 @@ process BaseRecalibrator {
   input:
   file bam from bam2_ch
   output:
-  file "${bam.simpleName}_calibration.table" into table_ch
+  file "${bam}.table" into table_ch
   script:
   """
   gatk BaseRecalibrator \
@@ -35,15 +35,15 @@ process BaseRecalibrator {
   --known-sites $GATK_dbsnp138 \
   --known-sites $GATK_1000G \
   --known-sites $GATK_mills \
-  -O ${bam.simpleName}_calibration.table
+  -O ${bam}.table
   """
 }
 
 process applyBaseRecalibrator {
   storeDir "$baseDir/output/GATK_germline_cohort"
   input:
-  file table from table_ch
   file bam from bam3_ch
+	file "${bam}.table" from table_ch \\does this work?? if it does is life changing
   output:
   file "${bam.simpleName}.BQSR.bam" into (haplotype_bam_ch, index_ch)
   script:
@@ -51,7 +51,7 @@ process applyBaseRecalibrator {
   gatk ApplyBQSR \
   -R $genome_fasta \
   -I ${bam} \
-  --bqsr-recal-file ${table} \
+  --bqsr-recal-file ${bam}.table \
   -O ${bam.simpleName}.BQSR.bam
   """
 }
