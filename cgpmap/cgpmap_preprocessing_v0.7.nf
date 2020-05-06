@@ -215,8 +215,9 @@ process merge_lanes{
 	storeDir "$baseDir/output/trim/merge_lanes"
 	input:
 	file bam from bam11_ch.collect()
+	file csv from csv_ch
 	output:
-	file "*_merge.bam" into rename2_ch
+	file "*_merged.bam" into rename2_ch
 	script:
 	"""
 	module add python/anaconda/4.2/3.5

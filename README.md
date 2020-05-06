@@ -12,4 +12,22 @@ As depicted in figure-1, each module is connected through the last file is produ
 Each module is comprised of various QC steps to ensure high quality processing of samples. The following sections describes the steps within each module and how it is expected to work.
 
 
-## Mapping-exome
+## Mapping-exome module
+
+The following module performs QC on fastq files and maps them using the sanger cgpMAP container (bwa-mem). Subsequent BAM files are de-duplicated and QC'ed (insert size, hybrid stats, alignment stats). BAM files are collected in order to merge the lanes.
+
+### Trim-galore
+
+Trimgalore requires the index primers to be supplied in order to trim fastQ files. These sequences can be supplied in the input.config file. FastQC option is enabled in order to produce report.
+
+### CgpMAP and fqtools
+
+
+
+
+
+For the following section there are several files that are required to be supplied:
+
+  - exome target/bait intervals (hybrid stats)
+
+![figure-2](images/mapping_exome.png)

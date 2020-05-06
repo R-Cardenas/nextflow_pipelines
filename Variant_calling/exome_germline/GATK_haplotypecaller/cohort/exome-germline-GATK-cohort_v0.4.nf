@@ -2,7 +2,7 @@
 /*
  * create a channel for bam files produced by cgpmap_processing pipeline
  */
-params.bam = "$baseDir/output/trim/merge_lanes/*.rename.bam"
+params.bam = "$baseDir/output/trim/merge_lanes/*merged.bam"
 bam_ch = Channel .fromPath( params.bam )
 
 bam_ch.into { bam2_ch; bam3_ch }
@@ -22,6 +22,8 @@ println """\
          .stripIndent()
 
 process BaseRecalibrator {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/GATK_germline_cohort"
   input:
   file bam from bam2_ch
@@ -39,11 +41,14 @@ process BaseRecalibrator {
   """
 }
 
+//line 47/55 change
 process applyBaseRecalibrator {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/GATK_germline_cohort"
   input:
   file bam from bam3_ch
-	file "${bam}.table" from table_ch \\does this work?? if it does is life changing
+	file "${bam}.table" from table_ch
   output:
   file "${bam.simpleName}.BQSR.bam" into (haplotype_bam_ch, index_ch)
   script:
@@ -57,6 +62,8 @@ process applyBaseRecalibrator {
 }
 
 process bam_index {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/GATK_germline_cohort"
   input:
   file pair_read_8 from index_ch
@@ -69,12 +76,14 @@ process bam_index {
 
   """
 }
-
+// line 77/86 change
 process haplotypeCaller {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/GATK_germline_cohort/haplotypeCaller"
   input:
 	file bam from haplotype_bam_ch
-  file bai from haplotype_index_ch
+  file "${bam}.bai" from haplotype_index_ch
   output:
   file "${bam.simpleName}.g.vcf.gz" into gatk_combine_ch
   script:
@@ -82,43 +91,48 @@ process haplotypeCaller {
   gatk HaplotypeCaller \
   -R $genome_fasta \
   -I ${bam} \
-	--read-index ${bai} \
+	--read-index ${bam}.bai \
   -O ${bam.simpleName}.g.vcf.gz \
   --create-output-variant-index true \
   -ERC GVCF
   """
 }
 
+//change py to bin dir
 process combine_gvcf {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/GATK_germline_cohort/haplotypeCaller"
   input:
   file vcf from gatk_combine_ch.collect()
   output:
-  file "project_combined.g.vcf" into combine_ch
+  file "${projectname}_combined.g.vcf" into combine_ch
   script:
   """
-	gatk IndexFeatureFile -F ${vcf}
-
-  python $baseDir/GATK_CombineGVCF.py -V '${vcf}' -O project_combined.g.vcf
+  python $baseDir/bin/GATK_CombineGVCF.py -V '${vcf}' -O ${projectname}_combined.g.vcf
   """
 }
 
 process genotypeVCF {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/GATK_germline_cohort/haplotypeCaller"
   input:
   file combine from combine_ch
   output:
-  file "${combine}.genotype.vcf" into (index2_ch, cnn1_ch)
+  file "${combine.simpleName}.genotype.vcf" into (index2_ch, cnn1_ch)
   script:
   """
   gatk GenotypeGVCFs \
   -R $genome_fasta \
   -V ${combine} \
-  -O ${combine}.genotype.vcf
+  -O ${combine.simpleName}.genotype.vcf
   """
 }
 
 process IndexFeatureFile {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/GATK_germline_cohort/haplotypeCaller"
   input:
   file vcf from index2_ch
@@ -133,10 +147,12 @@ process IndexFeatureFile {
 }
 
 process CNNscoreVariants {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/GATK_germline_cohort/haplotypeCaller"
   input:
   file vcf from cnn1_ch
-  file idx from cnn2_ch
+  file "${vcf.simpleName}.vcf.gz.tbi" from cnn2_ch
   output:
   file "${vcf.simpleName}.vcf" into filterVCF_ch
   script:
@@ -145,11 +161,13 @@ process CNNscoreVariants {
   -V ${vcf} \
   -R $genome_fasta \
   -O ${vcf.simpleName}.vcf \
-  --read-index ${idx}
+  --read-index ${vcf.simpleName}.vcf.gz.tbi
   """
 }
 
 process FilterVariantTranches {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/GATK_germline_cohort/filtered_vcf"
   input:
   file vcf from filterVCF_ch
@@ -185,6 +203,8 @@ process zip {
 
 // use bcftools which one?? normal conda version
 process merge_vcf {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/GATK_germline_cohort/filtered_vcf"
 	input:
 	file vcf2 from merge_ch.collect()
@@ -210,6 +230,8 @@ process collect_vcf {
 
 //needs bcftools
 process bcf_index {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
 	storeDir "$baseDir/output/VCF_collect"
 	input:
 	file vcf from index3_ch
