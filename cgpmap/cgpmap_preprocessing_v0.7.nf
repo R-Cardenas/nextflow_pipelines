@@ -151,7 +151,9 @@ process bam_index {
 }
 
 process collect_insert_size {
-  storeDir "$baseDir/output/trim/aligned_sorted"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	storeDir "$baseDir/output/trim/aligned_sorted"
   input:
   file bam from index_2ch
   output:
@@ -168,7 +170,9 @@ process collect_insert_size {
 }
 
 process hybrid_stats {
-  storeDir "$baseDir/output/trim/aligned_sorted"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	storeDir "$baseDir/output/trim/aligned_sorted"
   input:
   file bam from hs_ch
   output:
@@ -186,7 +190,9 @@ process hybrid_stats {
 }
 
 process alignment_stats{
-  storeDir "$baseDir/output/trim/aligned_sorted"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	storeDir "$baseDir/output/trim/aligned_sorted"
 	input:
 	file bam from bam10_ch
 	output:
@@ -204,6 +210,8 @@ process alignment_stats{
 }
 
 process merge_lanes{
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
 	storeDir "$baseDir/output/trim/merge_lanes"
 	input:
 	file bam from bam11_ch.collect()
@@ -212,7 +220,7 @@ process merge_lanes{
 	script:
 	"""
 	module add python/anaconda/4.2/3.5
-	$baseDir/bin/python merge_bam_lanes.py
+	python $baseDir/bin/merge_bam_lanes.py
 	"""
 }
 

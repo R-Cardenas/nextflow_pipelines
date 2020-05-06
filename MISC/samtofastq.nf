@@ -1,7 +1,7 @@
 /*
  * create a channel for bam files produced by cgpmap_processing pipeline
  */
-params.bam = "/gpfs/afm/cg_pipelines/Datasets/Cholesteatoma/Barbara_Jennings_UEA_BJ_ENQ-1485_A_02_ext_Analysis/bowtie2_sorted_bam_files/*.bam"
+params.bam = "$baseDir/input/*.bam"
 bam_ch = Channel .fromPath( params.bam )
 
 println """\
@@ -21,7 +21,6 @@ println """\
 
 process SamToFastQ{
   storeDir "$baseDir/output"
-    mode: 'link'
   input:
   file bam from bam_ch
   output:
@@ -29,16 +28,13 @@ process SamToFastQ{
   file "${bam.simpleName}_2.fq.gz"
   script:
   """
-  mkdir tmp
-  picard SamToFastq \
-  I=${bam} \
-  F=${bam.simpleName}_1.fq \
-  F2=${bam.simpleName}_2.fq \
-  INCLUDE_NON_PF_READS=true \
-  INCLUDE_NON_PRIMARY_ALIGNMENTS=true \
-  TMP_DIR=tmp
+	samtools bam2fq ${bam} > ${bam.simpleName}.fastq
 
-  gzip ${bam.simpleName}_1.fq
-  gzip ${bam.simpleName}_2.fq
+	cat ${bam.simpleName}.fastq  | grep '^@.*/1\$' -A 3 --no-group-separator > ${bam.simpleName}_1.fq
+	cat ${bam.simpleName}.fastq  | grep '^@.*/2\$' -A 3 --no-group-separator > ${bam.simpleName}_2.fq
+
+	gzip ${bam.simpleName}_1.fq
+	gzip ${bam.simpleName}_2.fq
+
   """
 }
