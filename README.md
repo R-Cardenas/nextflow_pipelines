@@ -18,7 +18,7 @@ As depicted in figure-1, each module is connected through the last file is produ
 Each module is comprised of various QC steps to ensure high quality processing of samples. The following sections describes the steps within each module and how it is expected to work.
 
 
-## Mapping-exome module
+## Mapping-exome
 
 The following module performs QC on fastq files and maps them using the sanger cgpMAP container (bwa-mem). Subsequent BAM files are de-duplicated and QC'ed (insert size, hybrid stats, alignment stats). BAM files are collected in order to merge the lanes. Following is a brief breakdown of the processes within the pipeline.
 
