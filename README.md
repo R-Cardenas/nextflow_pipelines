@@ -4,7 +4,7 @@
 ## Table of Contents
 
 * [Overview](#Overview)
-* [Mapping-exome module](# Mapping-exome module)
+* [Mapping-exome module](#Mapping-exome)
 
 ## Overview
 
