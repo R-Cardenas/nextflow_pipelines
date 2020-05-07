@@ -31,13 +31,16 @@ process BaseRecalibrator {
   file "${bam}.table" into table_ch
   script:
   """
+	mkdir -p tmp
   gatk BaseRecalibrator \
 	-I ${bam} \
   -R $genome_fasta \
   --known-sites $GATK_dbsnp138 \
   --known-sites $GATK_1000G \
   --known-sites $GATK_mills \
-  -O ${bam}.table
+  -O ${bam}.table \
+	--tmp-dir tmp
+	rm -fr tmp
   """
 }
 
@@ -53,11 +56,14 @@ process applyBaseRecalibrator {
   file "${bam.simpleName}.BQSR.bam" into (haplotype_bam_ch, index_ch)
   script:
   """
+	mkdir -p tmp
   gatk ApplyBQSR \
   -R $genome_fasta \
   -I ${bam} \
   --bqsr-recal-file ${bam}.table \
-  -O ${bam.simpleName}.BQSR.bam
+  -O ${bam.simpleName}.BQSR.bam \
+	--tmp-dir tmp
+	rm -fr tmp
   """
 }
 
@@ -88,13 +94,16 @@ process haplotypeCaller {
   file "${bam.simpleName}.g.vcf.gz" into gatk_combine_ch
   script:
   """
+	mkdir -p tmp
   gatk HaplotypeCaller \
   -R $genome_fasta \
   -I ${bam} \
 	--read-index ${bam}.bai \
   -O ${bam.simpleName}.g.vcf.gz \
   --create-output-variant-index true \
-  -ERC GVCF
+  -ERC GVCF \
+	--tmp-dir tmp
+	rm -fr tmp
   """
 }
 
@@ -123,10 +132,13 @@ process genotypeVCF {
   file "${combine.simpleName}.genotype.vcf" into (index2_ch, cnn1_ch)
   script:
   """
+	mkdir -p tmp
   gatk GenotypeGVCFs \
   -R $genome_fasta \
   -V ${combine} \
-  -O ${combine.simpleName}.genotype.vcf
+  -O ${combine.simpleName}.genotype.vcf \
+	--tmp-dir tmp
+	rm -fr tmp
   """
 }
 
@@ -140,9 +152,12 @@ process IndexFeatureFile {
   file "${vcf.simpleName}.vcf.gz.tbi" into cnn2_ch
   script:
   """
+	mkdir -p tmp
   gatk IndexFeatureFile \
     -F ${vcf} \
-    -O ${vcf.simpleName}.vcf.gz.tbi
+    -O ${vcf.simpleName}.vcf.gz.tbi \
+		--tmp-dir tmp
+	rm -fr tmp
   """
 }
 
@@ -157,11 +172,14 @@ process CNNscoreVariants {
   file "${vcf.simpleName}.vcf" into filterVCF_ch
   script:
   """
+	mkdir -p tmp
   gatk CNNScoreVariants \
   -V ${vcf} \
   -R $genome_fasta \
   -O ${vcf.simpleName}.vcf \
-  --read-index ${vcf.simpleName}.vcf.gz.tbi
+  --read-index ${vcf.simpleName}.vcf.gz.tbi \
+	--tmp-dir tmp
+	rm -fr tmp
   """
 }
 
@@ -175,6 +193,7 @@ process FilterVariantTranches {
   file "${vcf.simpleName}_filtered.vcf" into zip_ch
   script:
   """
+	mkdir -p tmp
   gatk FilterVariantTranches \
   -V ${vcf} \
 	--resource $GATK_dbsnp138 \
@@ -184,7 +203,9 @@ process FilterVariantTranches {
   --info-key CNN_1D \
   --snp-tranche 99.95 \
   --indel-tranche 99.4 \
-  -O "${vcf.simpleName}_filtered.vcf"
+  -O "${vcf.simpleName}_filtered.vcf" \
+	--tmp-dir tmp
+	rm -fr tmp
   """
 }
 
