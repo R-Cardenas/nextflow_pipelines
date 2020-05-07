@@ -14,7 +14,9 @@ Each module is comprised of various QC steps to ensure high quality processing o
 
 ## Mapping-exome module
 
-The following module performs QC on fastq files and maps them using the sanger cgpMAP container (bwa-mem). Subsequent BAM files are de-duplicated and QC'ed (insert size, hybrid stats, alignment stats). BAM files are collected in order to merge the lanes.
+The following module performs QC on fastq files and maps them using the sanger cgpMAP container (bwa-mem). Subsequent BAM files are de-duplicated and QC'ed (insert size, hybrid stats, alignment stats). BAM files are collected in order to merge the lanes. Following is a brief breakdown of the processes within the pipeline.
+
+![figure-2](images/mapping_exome.png)
 
 ### Trim-galore
 
@@ -22,12 +24,27 @@ Trimgalore requires the index primers to be supplied in order to trim fastQ file
 
 ### CgpMAP and fqtools
 
+CgpMAP does not annotate the bam files with information from the fastQ header. Therefore following trimming the fastq files are passed to FQtools which will extract the header for each read pair and a python script (fastq2config_cgpmap.py) to write this into a YAML file. The YAML is passed to cgpMAP which allows the correct headers to be assigned. An example of a YAML output is shown below:
 
+SM: S1001
+READGRPS:
+  S1001_EKDN200000467-1A_HYFMTDSXX_L1_1.fq.gz:
+    PL: ILLUMINA
+    LB: S1001_TTATCGGC+GATCATCC
+    PU: HYFMTDSXX.1
+  S1001_EKDN200000467-1A_HYFMTDSXX_L1_2.fq.gz:
+    PL: ILLUMINA
+    LB: S1001_TTATCGGC+GATCATCC
+    PU: HYFMTDSXX.1
 
+### BAM QC
 
+The following tools were used:
+  - Picard remove duplicates
+  - Picard insert size
+  - picard hybrid stats
+  - picard bam alignment stats
 
-For the following section there are several files that are required to be supplied:
+### Merge lanes
 
-  - exome target/bait intervals (hybrid stats)
-
-![figure-2](images/mapping_exome.png)
+Following the removing of duplicates from BAM files, the lanes are merged with supplied information from an excel sheet that is processed by python script (merge_bam_lanes_2.bam). For future work it would be easier to merge all bam files that have the same sample name.
