@@ -26,6 +26,7 @@ Trimgalore requires the index primers to be supplied in order to trim fastQ file
 
 CgpMAP does not annotate the bam files with information from the fastQ header. Therefore following trimming the fastq files are passed to FQtools which will extract the header for each read pair and a python script (fastq2config_cgpmap.py) to write this into a YAML file. The YAML is passed to cgpMAP which allows the correct headers to be assigned. An example of a YAML output is shown below:
 
+```
 SM: S1001
 READGRPS:
   S1001_EKDN200000467-1A_HYFMTDSXX_L1_1.fq.gz:
@@ -36,6 +37,7 @@ READGRPS:
     PL: ILLUMINA
     LB: S1001_TTATCGGC+GATCATCC
     PU: HYFMTDSXX.1
+```
 
 ### BAM QC
 
