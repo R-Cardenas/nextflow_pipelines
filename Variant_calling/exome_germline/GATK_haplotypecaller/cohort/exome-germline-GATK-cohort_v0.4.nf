@@ -27,7 +27,7 @@ process BaseRecalibrator {
   input:
   file bam from bam_ch
   output:
-  file "${bam}.table" into haplotype_bam_ch
+  file "${bam.simpleName}.BQSR.bam" into haplotype_bam_ch
   script:
   """
 	mkdir -p tmp
@@ -59,12 +59,15 @@ process haplotypeCaller {
   input:
 	file bam from haplotype_bam_ch
   output:
-  file "${bam.simpleName}.g.vcf.gz" into gatk_combine_ch
+  file "${bam.simpleName}.g.vcf.gz" into (vcf_index, gatk_combine_ch)
 	file "${bam}.bai"
   script:
   """
 	mkdir -p tmp
-	samtools index ${bam} -T tmp
+	gatk BuildBamIndex \
+	-I ${bam} \
+	-O ${bam}.bai \
+	--TMP_DIR tmp
 
   gatk HaplotypeCaller \
   -R $genome_fasta \
@@ -78,6 +81,23 @@ process haplotypeCaller {
   """
 }
 
+process vcf_index{
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  storeDir "$baseDir/output/GATK_germline_cohort/haplotypeCaller"
+	input:
+  file vcf from vcf_index
+  output:
+	file "${vcf}.*" into vcf_index2_ch
+	script:
+	"""
+	mkdir -p tmp
+  gatk IndexFeatureFile \
+    -F ${vcf} \
+		--tmp-dir tmp
+	"""
+}
+
 //change py to bin dir
 process combine_gvcf {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
@@ -85,11 +105,12 @@ process combine_gvcf {
   storeDir "$baseDir/output/GATK_germline_cohort/haplotypeCaller"
   input:
   file vcf from gatk_combine_ch.collect()
+	file index from vcf_index2_ch.collect()
   output:
   file "${projectname}_combined.g.vcf" into combine_ch
   script:
   """
-  python $baseDir/bin/GATK_CombineGVCF.py -V '${vcf}' -O ${projectname}_combined.g.vcf
+  python $baseDir/bin/GATK_CombineGVCF.py -V '${vcf}' -O ${projectname}_combined.g.vcf -R $genome_fasta
   """
 }
 
@@ -172,25 +193,10 @@ process zip {
 	input:
 	file zip from zip_ch
 	output:
-	file "${zip}.gz" into merge_ch
+	file "${zip}.gz" into collect_ch
 	script:
 	"""
 	bgzip ${zip}
-	"""
-}
-
-// use bcftools which one?? normal conda version
-process merge_vcf {
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
-  storeDir "$baseDir/output/GATK_germline_cohort/filtered_vcf"
-	input:
-	file vcf2 from merge_ch.collect()
-	output:
-	file "${projectname}_GATK_single_v0.2_filtered.vcf.gz" into collect_ch
-	script:
-	"""
-	bcftools merge -m all ${vcf2} -O z -o ${projectname}_GATK_single_v0.2_filtered.vcf.gz
 	"""
 }
 
@@ -202,7 +208,8 @@ process collect_vcf {
 	file "${projectname}_GATK_single_v0.2_filtered.vcf.gz" into index3_ch
 	script:
 	"""
-	cp ${zip2} $baseDir/output/VCF_collect/${projectname}_GATK_cohort.vcf.gz
+	mkdir -p $baseDir/output/VCF_collect
+	cp ${zip2} $baseDir/output/VCF_collect/${projectname}_GATK_single_v0.2_filtered.vcf.gz
 	"""
 }
 
