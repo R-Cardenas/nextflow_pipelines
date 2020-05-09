@@ -27,6 +27,8 @@ println """\
 
 
 process Freebayes {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/freebayes"
   input:
   file bam from bam_ch
@@ -39,6 +41,8 @@ process Freebayes {
 }
 
 process vcf_filter {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   scratch true
   input:
   file vcf from vcf_ch
@@ -53,6 +57,8 @@ process vcf_filter {
 }
 
 process merge_vcf{
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
 	storeDir "$baseDir/output/freebayes"
 	input:
 	file vcf from merge_ch.collect()
@@ -67,6 +73,8 @@ process merge_vcf{
 
 // needs samtools
 process zip {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/VCF_collect"
 	input:
 	file zip from zip_ch
@@ -80,6 +88,8 @@ process zip {
 
 //needs bcftools
 process bam_index {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
 	storeDir "$baseDir/output/VCF_collect"
 	input:
 	file vcf from index101_ch
