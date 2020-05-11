@@ -101,10 +101,37 @@ vcffilter -f \
   ${vcf} > ${vcf}_filtered_freebayes.vcf
 ```
 
-VCF files are merged into one and moved to the VCF_collect folder, awaiting variant post processing (!!LINK)
+VCF files are merged into one and moved to the VCF_collect folder, awaiting variant post processing.
 
 Problems/ to be done: NONE
 
 ## GATK_cohort
 
+Link to current GATK cohort pipeline nextflow script [here](Variant_calling/exome_germline/GATK_haplotypecaller/cohort/exome-germline-GATK-cohort_v0.4.nf)
+
 CgpMap produces *.merge.bam files within $baseDir/output/merge_lanes directory that are detected by the GATK nextflow pipeline.
+
+The pipeline was created using the guidance from GATK best practices workflow for Germline short variant discovery (SNPs + Indels) was used to identify variants (https://gatk.broadinstitute.org/hc/en-us/articles/360035535932-Germline-short-variant-discovery-SNPs-Indels-).
+
+The adapted flowchart below depicts the modules within this pipeline:
+
+![figure-3](images/GATK_cohort_flowchart.png)
+
+
+The pipeline produces a merged VCF file that has been filtered using the GATK recommended parameters:
+
+```
+gatk FilterVariantTranches \
+-V ${vcf} \
+--resource $GATK_dbsnp138 \
+--resource $GATK_1000G \
+--resource $GATK_mills \
+--resource $GATK_hapmap \
+--info-key CNN_1D \
+--snp-tranche 99.95 \
+--indel-tranche 99.4 \
+-O "${vcf.simpleName}_filtered.vcf"
+
+```
+
+VCF files are merged into one and moved to the VCF_collect folder, awaiting variant post processing.
