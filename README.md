@@ -5,8 +5,8 @@
 
 * [Overview](#Overview)
 * [Mapping-exome module](#Mapping-exome)
-* [Freebayes individual](#Freebayes)
-* [GATK Cohort](#GATK
+* [Freebayes individual](#Freebayes_individual)
+* [GATK Cohort](#GATK_cohort)
 
 
 ## Overview
@@ -88,7 +88,7 @@ This error strategy allows task attempts to have varied times when they are retr
 - verifyBamID(1) to be implemented. The tool is now working just needs to be added.
 
 
-## Freebayes (individual)
+## Freebayes_individual
 
 CgpMap produces *.merge.bam files within $baseDir/output/merge_lanes directory that are detected by the Freebayes nextflow pipeline.
 
@@ -105,6 +105,6 @@ VCF files are merged into one and moved to the VCF_collect folder, awaiting vari
 
 Problems/ to be done: NONE
 
-## GATK (cohort mode)
+## GATK_cohort
 
 CgpMap produces *.merge.bam files within $baseDir/output/merge_lanes directory that are detected by the GATK nextflow pipeline.
