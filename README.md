@@ -5,6 +5,9 @@
 
 * [Overview](#Overview)
 * [Mapping-exome module](#Mapping-exome)
+* [Freebayes individual](#Freebayes_(individual))
+* [GATK Cohort](#GATK(cohort_mode))
+*
 
 ## Overview
 
@@ -57,7 +60,7 @@ The following tools were used:
 
 ### Merge lanes
 
-Following the removing of duplicates from BAM files, the lanes are merged with supplied information from an excel sheet that is processed by python script (merge_bam_lanes_2.bam). An example of the excel sheet layout is shown [here](MAP/cgpmap/williams_batch2_info.csv). For future work it would be easier to merge all bam files that have the same sample name.
+Following the removing of duplicates from BAM files, the lanes are merged with supplied information from an excel sheet that is processed by [python script](bin/python/merge_bam_lanes_2.py). An example of the excel sheet layout is shown [here](MAP/cgpmap/williams_batch2_info.csv). For future work it would be easier to merge all bam files that have the same sample name.
 
 ### Exome mapping problems and workarounds
 
@@ -67,7 +70,7 @@ While constructing this pipeline there were a number of issues that were resovle
 ```
 This was a particular issue with singularity images harboring picard and samtools (theyre together) and cgpMAP. For samtools/picard the issue appeared to be an issue of resource - ie too many processes accessing the image at once resulted in failure. This was a similar issue in cgpMAP, however the problem was cgpMAP accessing the reference genomes to unzip. If too many processes did this at once resulted in error.
 
-In order to circumvent this, job submissions were limited to 10 at any one time (per process) (nextflow.config: queueSize = 10) and to space submissions out (nextflow.config: submitRateLimit = '1 / 1min'). This reduced the number of errors, though an error error strategy is still required for these processes to retry:
+In order to circumvent this, job submissions were limited to 10 at any one time (per process)( [nextflow.config:](config/nextflow_v0.3.config): queueSize = 10) and to space submissions out ([nextflow.config:](config/nextflow_v0.3.config) submitRateLimit = '1 / 1min'). This reduced the number of errors, though an error error strategy is still required for these processes to retry:
 
 ```
 errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
@@ -76,4 +79,32 @@ maxRetries 6
 
 This error strategy allows task attempts to have varied times when they are retried to increase the chances of processes having resource available when resubmitted.
 
-## Freebayes (individual)
+
+### To be done
+
+- script to download the scripts required for all pipeline before pipeline starts (easy github download)
+- clean up channel names.. messy because of extensive changing
+- merge lanes to be optional.. not all pipelines require merging of lanes.. a seperate nextflow script with it excluded will be the easiest.
+- verifyBamID(1) to be implemented. The tool is now working just needs to be added.
+
+
+## Freebayes_(individual)
+
+CgpMap produces *.merge.bam files within $baseDir/output/merge_lanes directory that are detected by the Freebayes nextflow pipeline.
+
+Each bam file is run independantly by Freebayes and filtered using the freebayes recommended parameters:
+
+
+```
+vcffilter -f \
+  "QUAL > 1 & QUAL / AO > 10 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1" \
+  ${vcf} > ${vcf}_filtered_freebayes.vcf
+```
+
+VCF files are merged into one and moved to the VCF_collect folder, awaiting variant post processing (!!LINK)
+
+Problems/ to be done: NONE
+
+## GATK(cohort_mode)
+
+CgpMap produces *.merge.bam files within $baseDir/output/merge_lanes directory that are detected by the GATK nextflow pipeline.
