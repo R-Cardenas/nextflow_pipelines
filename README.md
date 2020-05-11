@@ -5,8 +5,8 @@
 
 * [Overview](#Overview)
 * [Mapping-exome module](#Mapping-exome)
-* [Freebayes individual](#Freebayes)
-* [GATK Cohort](#GATK)
+* [Freebayes individual](#Freebayes_(individual))
+* [GATK Cohort](#GATK(cohort_mode))
 
 
 ## Overview
