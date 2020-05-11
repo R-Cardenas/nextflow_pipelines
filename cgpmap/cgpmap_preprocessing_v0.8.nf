@@ -104,7 +104,7 @@ process sam_sort {
   input:
   file bam from cgp_ch
   output:
-  file "${bam.simpleName}.sorted.bam" into dup_ch
+  file "${bam.simpleName}.sorted.bam" into merge_ch
   script:
   """
 	mkdir -p tmp
@@ -112,6 +112,22 @@ process sam_sort {
 	TMP_DIR=tmp
 	rm -fr tmp
   """
+}
+
+process merge_lanes{
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	storeDir "$baseDir/output/trim/merge_lanes"
+	input:
+	file bam from merge_ch.collect()
+	file csv from csv_ch
+	output:
+	file "*_merged.bam" into dup_ch
+	script:
+	"""
+	module add python/anaconda/4.2/3.5
+	python $baseDir/bin/merge_bam_lanes.py
+	"""
 }
 
 process picard_pcr_removal {
@@ -211,22 +227,19 @@ process alignment_stats{
 	"""
 }
 
-process merge_lanes{
+process verifybamid{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-	storeDir "$baseDir/output/trim/merge_lanes"
+	storeDir "$baseDir/output/trim/verifyBamID"
 	input:
-	file bam from bam11_ch.collect()
-	file csv from csv_ch
+	file bam from bam11_ch
 	output:
-	file "*_merged.bam" into rename2_ch
+	file "verifybam*"
 	script:
 	"""
-	module add python/anaconda/4.2/3.5
-	python $baseDir/bin/merge_bam_lanes.py
+	verifybamid --vcf $verifybamid --bam ${bam} --out ${bam.simpleName} --maxDepth 1000 --precise
 	"""
 }
-
 
 workflow.onComplete {
 	// create log files and record output

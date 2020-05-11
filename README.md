@@ -135,3 +135,5 @@ gatk FilterVariantTranches \
 ```
 
 VCF files are merged into one and moved to the VCF_collect folder, awaiting variant post processing.
+
+## VCF post-processing
