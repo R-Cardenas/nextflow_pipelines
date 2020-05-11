@@ -55,4 +55,4 @@ The following tools were used:
 
 ### Merge lanes
 
-Following the removing of duplicates from BAM files, the lanes are merged with supplied information from an excel sheet that is processed by python script (merge_bam_lanes_2.bam). An example of the excel sheet layout is shown [here](MAP/williams_batch2_info.csv). For future work it would be easier to merge all bam files that have the same sample name.
+Following the removing of duplicates from BAM files, the lanes are merged with supplied information from an excel sheet that is processed by python script (merge_bam_lanes_2.bam). An example of the excel sheet layout is shown [here](MAP/cgpmap/williams_batch2_info.csv). For future work it would be easier to merge all bam files that have the same sample name.
