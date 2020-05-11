@@ -49,7 +49,7 @@ process trim_galore{
 }
 
 process fqtools{
-	scratch true
+  storeDir "$baseDir/output/cgpMAP/trimmomatic"
 	input:
 	file read1 from read7_ch
 	file read2 from read12_ch
@@ -60,7 +60,7 @@ process fqtools{
 	fqtools -d header ${read1} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${read1.simpleName}.txt
 	fqtools -d header ${read2} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${read2.simpleName}.txt
 
-	python $baseDir/fastq2config_cgpmap.py --fq1 ${read1.simpleName}.txt --fq2 ${read1.simpleName}.txt \
+	python $baseDir/fastq2config_cgpmap.py --fq1 ${read1.simpleName}.txt --fq2 ${read2.simpleName}.txt \
 	--n1 ${read1} --n2 ${read2} --o ${read1}.yaml
 	"""
 }
@@ -77,8 +77,8 @@ process cgpMAP {
   file "*.bam" into cgp_ch
   script:
   """
-	echo 'fq1: ${read1} fq2: ${read2} bam_name: ${read1.simpleName}' >> cgpmap_samples.log
-	name=\$(echo '${read1}' | sed -e 's/_.*//' -e 's/.*\\///')
+
+	name=\$(echo '${read2}' | sed -e 's/_.*//' -e 's/.*\\///')
 
   ds-cgpmap.pl  \
   -outdir $baseDir/output/cgpMAP/${read1.simpleName} \
@@ -91,6 +91,8 @@ process cgpMAP {
 
 	mv $baseDir/output/cgpMAP/${read1.simpleName}/*.bam \
 	$baseDir/output/cgpMAP/${read1.simpleName}/${read1.simpleName}.bam
+
+	echo 'fq1: ${read1} fq2: ${read2} bam_name: ${read1.simpleName}' >> $baseDir/${projectname}_cgpmap_samples.log
   """
 }
 
@@ -252,6 +254,7 @@ workflow.onComplete {
 	 ' >> $baseDir/${projectname}_log.txt
 
 	 mail -s "cgpMAP successful" aft19qdu@uea.ac.uk < $baseDir/${projectname}_log.txt
+	 	mail -s "cgpMAP info" aft19qdu@uea.ac.uk < $baseDir/${projectname}_cgpmap_samples.log
 	 """
 	}
 }

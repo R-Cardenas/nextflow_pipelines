@@ -47,6 +47,7 @@ if name1 == name2:
     print("names are identical")
 else:
     raise SyntaxError('Fastq files have different names')
+    exit
 # ## Set other parameters from input within txt file
 SM = "SM: " + name1 + "\n"
 PL = "    PL: ILLUMINA" + "\n"

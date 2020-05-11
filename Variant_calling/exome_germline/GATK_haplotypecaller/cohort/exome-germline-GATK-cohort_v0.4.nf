@@ -28,6 +28,7 @@ process BaseRecalibrator {
   file bam from bam_ch
   output:
   file "${bam.simpleName}.BQSR.bam" into haplotype_bam_ch
+	file "${bam}.table"
   script:
   """
 	mkdir -p tmp
@@ -107,10 +108,11 @@ process combine_gvcf {
   file vcf from gatk_combine_ch.collect()
 	file index from vcf_index2_ch.collect()
   output:
-  file "${projectname}_combined.g.vcf" into combine_ch
+  file "${projectname}_combined.g.vcf.gz" into combine_ch
   script:
   """
-  python $baseDir/bin/GATK_CombineGVCF.py -V '${vcf}' -O ${projectname}_combined.g.vcf -R $genome_fasta
+	mkdir -p tmp
+  python $baseDir/bin/GATK_CombineGVCF.py -V '${vcf}' -O ${projectname}_combined.g.vcf.gz -R $genome_fasta
   """
 }
 
@@ -121,14 +123,20 @@ process genotypeVCF {
   input:
   file combine from combine_ch
   output:
-  file "${combine.simpleName}.genotype.vcf" into index2_ch
+  file "${combine.simpleName}.genotype.vcf.gz" into index2_ch
+	file "${vcf.simpleName}.vcf.gz.tbi" into index10_ch
   script:
   """
 	mkdir -p tmp
+  gatk IndexFeatureFile \
+    -F ${combine} \
+    -O ${combine.simpleName}.vcf.gz.tbi \
+		--tmp-dir tmp
+
   gatk GenotypeGVCFs \
   -R $genome_fasta \
   -V ${combine} \
-  -O ${combine.simpleName}.genotype.vcf \
+  -O ${combine.simpleName}.genotype.vcf.gz \
 	--tmp-dir tmp
 	rm -fr tmp
   """
@@ -140,8 +148,8 @@ process IndexFeatureFile {
   storeDir "$baseDir/output/GATK_germline_cohort/haplotypeCaller"
   input:
   file vcf from index2_ch
+	file index from index10_ch
   output:
-  file "${vcf.simpleName}.vcf.gz.tbi"
 	file "${vcf.simpleName}.vcf" into filterVCF_ch
   script:
   """

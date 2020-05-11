@@ -28,7 +28,7 @@ for i in x:
     y += "-V " + i + " "
 
 #Put this together with the GATK tool to run run the script we want
-script = "gatk CombineGVCFs -R " + genome + " " + y + " -O " + output
+script = "gatk CombineGVCFs -R " + genome + " " + y + " -O " + output + " --tmp-dir tmp"
 script = str(script)
 
 print(script)

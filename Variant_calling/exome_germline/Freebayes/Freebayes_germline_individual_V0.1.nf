@@ -43,47 +43,50 @@ process Freebayes {
 process vcf_filter {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-  scratch true
+  storeDir "$baseDir/output/freebayes"
   input:
   file vcf from vcf_ch
   output:
-  file "${projectname}_filtered_freebayes.vcf" into merge_ch
+  file "${vcf}_filtered_freebayes.vcf" into zip2_ch
   script:
   """
   vcffilter -f \
   "QUAL > 1 & QUAL / AO > 10 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1" \
-  ${vcf} > ${projectname}_filtered_freebayes.vcf
+  ${vcf} > ${vcf}_filtered_freebayes.vcf
   """
 }
 
-process merge_vcf{
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
-	storeDir "$baseDir/output/freebayes"
-	input:
-	file vcf from merge_ch.collect()
-	output:
-	file "${projectname}_freebayes_merged.vcf.gz" into zip_ch
-	script:
-	"""
-	bcftools merge -m all -O z -o ${projectname}_freebayes_merged.vcf.gz ${vcf}
-	"""
-}
-
-
-// needs samtools
 process zip {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-  storeDir "$baseDir/output/VCF_collect"
+  storeDir "$baseDir/output/freebayes"
 	input:
-	file zip from zip_ch
+	file zip from zip2_ch
 	output:
-	file "${zip}.gz" into index101_ch
+	file "${zip}.gz" into merge_ch
+	file "${zip}.gz.tbi" into csi_ch
 	script:
 	"""
 	bgzip ${zip}
+	bcftools index -t ${zip}.gz
 	"""
+}
+
+//change py to bin dir
+process combine_gvcf {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  storeDir "$baseDir/output/freebayes"
+  input:
+  file vcf from merge_ch.collect()
+	file index from csi_ch.collect()
+  output:
+  file "${projectname}_combined.g.vcf.gz" into index101_ch
+  script:
+  """
+	mkdir -p tmp
+  python $baseDir/bin/GATK_CombineGVCF.py -V '${vcf}' -O ${projectname}_combined.g.vcf.gz -R $genome_fasta
+  """
 }
 
 //needs bcftools
