@@ -2,9 +2,9 @@
 /*
  * create a channel for bam files produced by Pipeline GATK germline (single)_processing pipeline
  */
-params.bam = "$baseDir/output/aligned_sorted/*.rename.bam"
-bam_ch = Channel .fromPath( params.bam )
-bam_ch.into { bam2_ch; bam3_ch }
+ params.bam = "$baseDir/output/trim/merge_lanes/*merged.bam"
+ bam_ch = Channel .fromPath( params.bam )
+
 
 println """\
 	\
@@ -23,99 +23,86 @@ println """\
          .stripIndent()
 
 process BaseRecalibrator {
-  storeDir "$baseDir/output/GATK_germline_single"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  storeDir "$baseDir/output/GATK_germline_cohort"
   input:
-  file bam from bam2_ch
+  file bam from bam_ch
   output:
-  file "${bam.simpleName}_calibration.table" into table_ch
+  file "${bam.simpleName}.BQSR.bam" into haplotype_bam_ch
+	file "${bam}.table"
   script:
   """
+	mkdir -p tmp
   gatk BaseRecalibrator \
-  -I ${bam} \
+	-I ${bam} \
   -R $genome_fasta \
   --known-sites $GATK_dbsnp138 \
   --known-sites $GATK_1000G \
   --known-sites $GATK_mills \
-  -O ${bam.simpleName}_calibration.table
-  """
-}
+  -O ${bam}.table \
+	--tmp-dir tmp
 
-process applyBaseRecalibrator {
-  storeDir "$baseDir/output/GATK_germline_single"
-  input:
-  file table from table_ch
-  file bam from bam3_ch
-  output:
-  file "${bam.simpleName}.BQSR.bam" into (haplotype_ch, index_ch)
-  script:
-  """
-  gatk ApplyBQSR \
+	gatk ApplyBQSR \
   -R $genome_fasta \
   -I ${bam} \
-  --bqsr-recal-file ${table} \
-  -O ${bam.simpleName}.BQSR.bam
-  """
-  }
-
-process bam_index {
-  storeDir "$baseDir/output/GATK_germline_single"
-  input:
-  file index from index_ch
-  output:
-  file "${index}.bai" into index2_ch
-
-  script:
-  """
-  samtools index ${index}
+  --bqsr-recal-file ${bam}.table \
+  -O ${bam.simpleName}.BQSR.bam \
+	--tmp-dir tmp
+	rm -fr tmp
 
   """
 }
 
+// line 77/86 change
 process haplotypeCaller {
-  storeDir "$baseDir/output/GATK_germline_single/haplotypeCaller"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  storeDir "$baseDir/output/GATK_germline_cohort/haplotypeCaller"
   input:
-  file bam from haplotype_ch
-  file bai from index2_ch
+	file bam from haplotype_bam_ch
   output:
-  file "${bam.simpleName}.vcf.gz" into (haplotype2_ch, index3_ch)
+  file "${bam.simpleName}.g.vcf.gz" into haplotype2_ch
+	file "${bam}.bai"
   script:
   """
+	mkdir -p tmp
+	gatk BuildBamIndex \
+	-I ${bam} \
+	-O ${bam}.bai \
+	--TMP_DIR tmp
+
   gatk HaplotypeCaller \
   -R $genome_fasta \
   -I ${bam} \
-  -O ${bam.simpleName}.vcf.gz \
-  --create-output-variant-index true
+	--read-index ${bam}.bai \
+  -O ${bam.simpleName}.g.vcf.gz \
+  --create-output-variant-index true \
+  -ERC GVCF \
+	--tmp-dir tmp
+	rm -fr tmp
   """
 }
 
-process IndexFeatureFile {
-  storeDir "$baseDir/output/GATK_germline_single/haplotypeCaller"
-  input:
-  file vcf from index3_ch
-  output:
-  file "${vcf.simpleName}.vcf.gz.tbi" into cnn_ch
-  script:
-  """
-  gatk IndexFeatureFile \
-    -F ${vcf} \
-    -O ${vcf.simpleName}.vcf.gz.tbi
-  """
-}
 
 process CNNscoreVariants {
   storeDir "$baseDir/output/GATK_germline_single/haplotypeCaller"
   input:
   file vcf from haplotype2_ch
-  file idx from cnn_ch
   output:
   file "${vcf.simpleName}.vcf" into filterVCF_ch
   script:
   """
+	mkdir -p tmp
+	gatk IndexFeatureFile \
+		-F ${vcf} \
+		--tmp-dir tmp
+
   gatk CNNScoreVariants \
   -V ${vcf} \
   -R $genome_fasta \
 	-O ${vcf.simpleName}.vcf \
-	--read-index ${idx}
+	--tmp-dir tmp
 	"""
 }
 
@@ -146,23 +133,12 @@ process zip {
 	input:
 	file zip from zip_ch
 	output:
-	file "${zip}.gz" into (merge_ch, index4_ch)
+	file "${zip}.gz" into merge2_ch
+	file "${zip}.gz.csi" into merge3_ch
 	script:
 	"""
 	bgzip ${zip}
-	"""
-}
-
-//needs bcftools
-process bcf_index1 {
-  storeDir "$baseDir/output/GATK_germline_cohort/filtered_vcf"
-	input:
-	file vcf from index4_ch
-	output:
-	file "${vcf}.csi" into merge2_ch
-	script:
-	"""
-	bcftools index ${vcf}
+	bcftools index ${zip}.gz
 	"""
 }
 
@@ -170,8 +146,8 @@ process bcf_index1 {
 process merge_vcf {
   storeDir "$baseDir/output/GATK_germline_cohort/filtered_vcf"
 	input:
-	file vcf2 from merge_ch.collect()
 	file index from merge2_ch.collect()
+	file index2 from merge3_ch.collect()
 	output:
 	file "${projectname}_GATK_single_v0.2_filtered.vcf.gz" into collect_ch
 	script:

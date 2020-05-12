@@ -100,7 +100,7 @@ process cgpMAP {
 process sam_sort {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-  scratch true
+  storeDir "$baseDir/output/BAM/sorted"
   input:
   file bam from cgp_ch
   output:
@@ -117,7 +117,7 @@ process sam_sort {
 process merge_lanes{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-	storeDir "$baseDir/output/trim/merge_lanes"
+	storeDir "$baseDir/output/BAM/merged_lanes"
 	input:
 	file bam from merge_ch.collect()
 	file csv from csv_ch
@@ -133,7 +133,7 @@ process merge_lanes{
 process picard_pcr_removal {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-  storeDir "$baseDir/output/trim/aligned_sorted"
+	storeDir "$baseDir/output/BAM/merged_lanes"
   input:
   file bam from dup_ch
   output:
@@ -151,7 +151,7 @@ process picard_pcr_removal {
 process bam_index {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-  storeDir "$baseDir/output/trim/aligned_sorted"
+	storeDir "$baseDir/output/BAM/merged_lanes"
   input:
   file bam from index1_ch
   output:
@@ -171,7 +171,7 @@ process bam_index {
 process collect_insert_size {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-	storeDir "$baseDir/output/trim/aligned_sorted"
+	storeDir "$baseDir/output/BAM/merged_lanes"
   input:
   file bam from index_2ch
   output:
@@ -190,7 +190,7 @@ process collect_insert_size {
 process hybrid_stats {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-	storeDir "$baseDir/output/trim/aligned_sorted"
+	storeDir "$baseDir/output/BAM/merged_lanes"
   input:
   file bam from hs_ch
   output:
@@ -210,7 +210,7 @@ process hybrid_stats {
 process alignment_stats{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-	storeDir "$baseDir/output/trim/aligned_sorted"
+	storeDir "$baseDir/output/BAM/merged_lanes"
 	input:
 	file bam from bam10_ch
 	output:
