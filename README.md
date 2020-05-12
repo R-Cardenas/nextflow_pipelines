@@ -136,4 +136,19 @@ gatk FilterVariantTranches \
 
 VCF files are merged into one and moved to the VCF_collect folder, awaiting variant post processing.
 
-## VCF post-processing
+## VCF_post-processing
+
+Following variant calling, the following module will merge the VCFs (giving statistics output), annotate sites and filter for population allele frequency (AF).
+
+![figure-3](images/post-processing_VCF.png)
+
+Filtering of the pop-AF allows two groups to be chosen (e.g. whole population AF + european_AF), and these values are specified in the input.config file. An example is shown below:
+
+```
+AF_group1 = "gnomAD_exome_AF"
+AF_group2 = "gnomAD_exome_AF_nfe"
+
+AF1= "0.001"
+AF2= "0.001"
+
+```
