@@ -2,8 +2,8 @@
 /*
  * create a channel for bam files produced by Pipeline GATK germline (single)_processing pipeline
  */
- params.bam = "$baseDir/output/trim/merge_lanes/*merged.bam"
- bam_ch = Channel .fromPath( params.bam )
+params.bam = "$baseDir/output/BAM/merged_lanes/*.rmd.bam"
+bam_ch = Channel .fromPath( params.bam )
 
 
 println """\

@@ -140,7 +140,7 @@ VCF files are merged into one and moved to the VCF_collect folder, awaiting vari
 
 Following variant calling, the following module will merge the VCFs (giving statistics output), annotate sites and filter for population allele frequency (AF).
 
-![figure-3](images/post-processing_VCF.png)
+![figure-3](images/post-processing_VCF_flow.png)
 
 Filtering of the pop-AF allows two groups to be chosen (e.g. whole population AF + european_AF), and these values are specified in the input.config file. An example is shown below:
 

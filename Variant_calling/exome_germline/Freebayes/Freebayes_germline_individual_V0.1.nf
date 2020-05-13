@@ -3,7 +3,7 @@
 /*
  * create a channel for fastq pairs
  */
-params.bam = "$baseDir/output/trim/merge_lanes/*merged.bam"
+params.bam = "$baseDir/output/BAM/merged_lanes/*.rmd.bam"
 
 Channel
 	.fromPath( params.bam )

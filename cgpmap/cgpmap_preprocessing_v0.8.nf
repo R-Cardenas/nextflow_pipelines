@@ -122,7 +122,7 @@ process merge_lanes{
 	file bam from merge_ch.collect()
 	file csv from csv_ch
 	output:
-	file "*_merged.bam" into dup_ch
+	file "*merged.bam" into dup_ch
 	script:
 	"""
 	module add python/anaconda/4.2/3.5
@@ -135,7 +135,7 @@ process picard_pcr_removal {
 	maxRetries 6
 	storeDir "$baseDir/output/BAM/merged_lanes"
   input:
-  file bam from dup_ch
+  file bam from dup_ch.flatten()
   output:
   file "${bam.simpleName}.rmd.bam" into (index1_ch, index_2ch, hs_ch, bam10_ch, bam11_ch)
 	file "${bam.simpleName}.log"
@@ -155,7 +155,7 @@ process bam_index {
   input:
   file bam from index1_ch
   output:
-  file "${bam}.bai"
+  file "${bam}.bai" into index_3ch
 
   script:
   """
@@ -214,7 +214,7 @@ process alignment_stats{
 	input:
 	file bam from bam10_ch
 	output:
-	file "${bam.simpleName}_align_stats.txt"
+	file "${bam.simpleName}_align_stats.txt" into verify_ch
 	script:
 	"""
 	mkdir -p tmp
@@ -233,11 +233,12 @@ process verifybamid{
 	storeDir "$baseDir/output/trim/verifyBamID"
 	input:
 	file bam from bam11_ch
+	file idx from index_3ch.collect()
 	output:
 	file "verifybam*"
 	script:
 	"""
-	verifybamid --vcf $verifybamid --bam ${bam} --out ${bam.simpleName} --maxDepth 1000 --precise
+	verifyBamID --vcf $verifybamid --bam ${bam} --out ${bam.simpleName} --maxDepth 1000 --precise --verbose
 	"""
 }
 

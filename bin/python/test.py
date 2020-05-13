@@ -1,7 +1,3 @@
-import os, numpy, warnings
-import pandas as pd
-
-
-os.environ['R_HOME'] = '/home/gdpoore/anaconda3/envs/tcgaAnalysisPythonR/lib/R'
-warnings.filterwarnings('ignore')
-
+import os
+size1 = 'FIFTY'
+os.system("echo 'size1, size2 " + size1 + "' >> size.log")
