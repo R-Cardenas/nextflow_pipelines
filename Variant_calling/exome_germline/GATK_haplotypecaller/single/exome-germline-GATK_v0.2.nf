@@ -78,7 +78,8 @@ process haplotypeCaller {
 	--read-index ${bam}.bai \
   -O ${bam.simpleName}.g.vcf.gz \
   --create-output-variant-index true \
-  -ERC GVCF \
+	--intervals $haplotypecaller_bed \
+  -ERC NONE \
 	--tmp-dir tmp
 	rm -fr tmp
   """
@@ -90,7 +91,7 @@ process CNNscoreVariants {
   input:
   file vcf from haplotype2_ch
   output:
-  file "${vcf.simpleName}.vcf" into filterVCF_ch
+  file "${vcf.simpleName}_CNN.g.vcf.gz" into filterVCF_ch
   script:
   """
 	mkdir -p tmp
@@ -101,7 +102,7 @@ process CNNscoreVariants {
   gatk CNNScoreVariants \
   -V ${vcf} \
   -R $genome_fasta \
-	-O ${vcf.simpleName}.vcf \
+	-O ${vcf.simpleName}_CNN.g.vcf.gz \
 	--tmp-dir tmp
 	"""
 }
@@ -111,19 +112,25 @@ process FilterVariantTranches {
 	input:
 	file vcf from filterVCF_ch
 	output:
-	file "${vcf.simpleName}_filtered.vcf" into zip_ch
+	file "${vcf.simpleName}_filtered.g.vcf" into zip_ch
 	script:
 	"""
+	mkdir -p tmp
+	gatk IndexFeatureFile \
+		-F ${vcf} \
+		--tmp-dir tmp
+
 	gatk FilterVariantTranches \
 	-V ${vcf} \
+	--info-key CNN_1D \
 	--resource $GATK_dbsnp138 \
   --resource $GATK_1000G \
   --resource $GATK_mills \
 	--resource $GATK_hapmap \
-	--info-key CNN_1D \
 	--snp-tranche 99.95 \
 	--indel-tranche 99.4 \
-	-O "${vcf.simpleName}_filtered.vcf"
+	-O ${vcf.simpleName}_filtered.g.vcf \
+	--tmp-dir tmp
 	"""
 }
 
@@ -146,7 +153,7 @@ process zip {
 process merge_vcf {
   storeDir "$baseDir/output/GATK_germline_cohort/filtered_vcf"
 	input:
-	file index from merge2_ch.collect()
+	file vcf2 from merge2_ch.collect()
 	file index2 from merge3_ch.collect()
 	output:
 	file "${projectname}_GATK_single_v0.2_filtered.vcf.gz" into collect_ch

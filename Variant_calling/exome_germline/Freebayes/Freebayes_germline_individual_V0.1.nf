@@ -85,7 +85,7 @@ process combine_gvcf {
   script:
   """
 	mkdir -p tmp
-  python $baseDir/bin/GATK_CombineGVCF.py -V '${vcf}' -O ${projectname}_combined.g.vcf.gz -R $genome_fasta
+  python $baseDir/bin/GATK_CombineGVCF.py -V '${vcf}' -O ${projectname}_combined_freebayes.vcf.gz -R $genome_fasta
   """
 }
 
@@ -98,8 +98,10 @@ process bam_index {
 	file vcf from index101_ch
 	output:
 	file "${vcf}.csi"
+	file "${projectname}_freebayes.vcf.gz"
 	script:
 	"""
+	cp ${vcf} ${projectname}_freebayes.vcf.gz
 	bcftools index ${vcf}
 	"""
 }

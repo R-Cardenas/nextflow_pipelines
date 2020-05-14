@@ -53,29 +53,19 @@ process vcf_filter {
   """
 }
 
-// needs samtools
-process zip {
-  storeDir "$baseDir/output/VCF_collect"
-	input:
-	file zip from zip_ch
-	output:
-	file "${zip}.gz" into index101_ch
-	script:
-	"""
-	bgzip ${zip}
-	"""
-}
 
 //needs bcftools
 process bam_index {
 	storeDir "$baseDir/output/VCF_collect"
 	input:
-	file vcf from index101_ch
+	file vcf from vcf_ch
 	output:
 	file "${vcf}.csi"
+	file "${vcf}.gz"
 	script:
 	"""
-	bcftools index ${vcf}
+	bgzip ${vcf}
+	bcftools index ${vcf}.gz
 	"""
 }
 

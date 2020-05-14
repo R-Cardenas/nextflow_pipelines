@@ -2,7 +2,7 @@
 /*
  * create a channel for bam files produced by cgpmap_processing pipeline
  */
-params.bam = "$baseDir/output/trim/merge_lanes/*merged.bam"
+params.bam = "$baseDir/output/BAM/merged_lanes/*.rmd.bam"
 bam_ch = Channel .fromPath( params.bam )
 
 
@@ -186,7 +186,6 @@ process FilterVariantTranches {
   --resource $GATK_1000G \
   --resource $GATK_mills \
 	--resource $GATK_hapmap \
-  --info-key CNN_1D \
   --snp-tranche 99.95 \
   --indel-tranche 99.4 \
   -O "${vcf.simpleName}_filtered.vcf" \

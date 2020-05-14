@@ -6,7 +6,7 @@ bam_ch = Channel .fromPath( params.bam )
 idx_ch = Channel .fromPath( params.idx )
 
 
-
+// the output lookup is wrong
 process verifybamid{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
