@@ -12,9 +12,9 @@ vcf_ch.into {vcf2_ch; vcf3_ch}
 index_ch = Channel. fromPath (params.index)
 index_ch.into {index2_ch; index3_ch}
 
-// name in nextflow config
+
 process vcf_stats {
-  storeDir "$baseDir/output/VCF_collect"
+  storeDir "$baseDir/output/VCF_collect/overlap_stats"
   input:
   file vcf from vcf2_ch.collect()
   file index from index2_ch.collect()
@@ -23,13 +23,13 @@ process vcf_stats {
   script:
   """
   ls ${index}
-  bcftools stats -c none ${vcf} > ${projectname}_bcf_stats.vchk
+  bcftools stats -c both ${vcf} > ${projectname}_bcf_stats.vchk
   """
 }
 
 
 process awks_stats {
-  storeDir "$baseDir/output/VCF_collect"
+  storeDir "$baseDir/output/VCF_collect/overlap_stats"
   input:
   file vchk from stats_ch
   output:
@@ -53,11 +53,12 @@ process overlap_stats {
   file "snp_venn_${projectname}.jpg"
   script:
   """
-  ${baseDir}/bcftools_stat_plot.R \
+  chmod +x ${baseDir}/bin/bcftools_stat_plot.R
+  ${baseDir}/bin/bcftools_stat_plot.R \
   -I ${snps} \
   -D ${id} \
   -o snp_venn_${projectname}.jpg \
-  -O snp_venn_${projectname}.jpg
+  -O indel_venn_${projectname}.jpg
   """
 }
 
@@ -68,23 +69,22 @@ process isec {
   file vcf from vcf3_ch.collect()
   file index from index3_ch.collect()
   output:
-  file "${projectname}_merged.vcf.gz" into functotator_ch
+  file "${projectname}_merged.vcf" into (functotator_ch, somalier_ch)
   script:
   """
-  ls ${index}
-  bcftools isec -c none ${vcf} -O z -o ${projectname}_merged.vcf.gz -p tmp
-  mv tmp/0002.vcf.gz ./${projectname}_merged.vcf.gz
+  mkdir -p tmp
+  bcftools isec -c both ${vcf} -o ${projectname}_merged.vcf -p tmp
+  mv tmp/0002.vcf ./${projectname}_merged.vcf
   rm -fr tmp
   """
 }
-
 // add to config
 process functotator {
   storeDir "$baseDir/output/functotator"
   input:
   file vcf from functotator_ch
   output:
-  file "${vcf.baseName}.maf" into maf_ch
+  file "${vcf.baseName}.maf" into (maf_ch, maf2_ch)
   script:
   """
   gatk IndexFeatureFile -F ${vcf}
@@ -98,6 +98,41 @@ process functotator {
    --ref-version hg38
   """
 }
+
+process somalier{
+  storeDir "$baseDir/output/somalier"
+  input:
+  file vcf from somalier_ch
+  file x from maf2_ch
+  output:
+	file "*.html" into som_ch
+  script:
+  """
+	mkdir -p $baseDir/output/VCF_collect/somalier/somalier_files
+	wget -P $baseDir/output/VCF_collect/somalier/somalier_files https://github.com/brentp/somalier/files/3412456/sites.hg38.vcf.gz
+
+	somalier extract -d $baseDir/output/somalier \
+	--sites $baseDir/output/VCF_collect/somalier/somalier_files/sites.hg38.vcf.gz \
+	-f $genome_fasta \
+	${vcf}
+
+	somalier relate --ped $baseDir/chole_batch2.ped  $baseDir/output/somalier/*.somalier
+
+	wget -P $baseDir/output/VCF_collect/somalier/somalier_files \
+	https://raw.githubusercontent.com/brentp/somalier/master/scripts/ancestry-labels-1kg.tsv
+
+	wget -P $baseDir/output/VCF_collect/somalier/somalier_files \
+	https://zenodo.org/record/3479773/files/1kg.somalier.tar.gz?download=1
+	tar -xzf $baseDir/output/VCF_collect/somalier/somalier_files/1kg.somalier.tar.gz
+
+	somalier ancestry --labels $baseDir/output/VCF_collect/somalier/somalier_files/ancestry-labels-1kg.tsv \
+	$baseDir/output/VCF_collect/somalier/somalier_files/1kg-somalier/*.somalier ++ $baseDir/output/somalier/*.somalier
+  """
+}
+
+
+
+
 
 process maf_header {
   storeDir "$baseDir/output/functotator"
@@ -114,19 +149,21 @@ process maf_header {
 process gnomAD_AF {
   storeDir "$baseDir/output/functotator"
   input:
+  file dom from som_ch
   file maf from allele_frequency_ch
   output:
   file "${projectname}_filtered.maf" into maftools_ch
   script:
   """
-  ./gnomAD_AF_MAF.R \
+  chmod +x $baseDir/bin/gnomAD_AF_MAF.R
+  $baseDir/bin/gnomAD_AF_MAF.R \
   -f ${maf} \
   -E $AF_group1 \
   -AF $AF1 \
   -x $AF_group2 \
   -y $AF2 \
   -o $projectname \
-  -DP $DP
+  -D $DP
   """
 }
 
@@ -141,7 +178,8 @@ process maftools {
   file "${projectname}_VAF.jpg"
   script:
   """
-  ./maftools.R \
+  chmod +x $baseDir/bin/maftools.R
+  $baseDir/bin/maftools.R \
   -f ${maf}
   -o $projectname
   """

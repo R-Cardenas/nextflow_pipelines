@@ -25,7 +25,7 @@ println """\
 process BaseRecalibrator {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-  storeDir "$baseDir/output/GATK_germline_cohort"
+  storeDir "$baseDir/output/GATK_germline_single/haplotypeCaller"
   input:
   file bam from bam_ch
   output:
@@ -58,7 +58,7 @@ process BaseRecalibrator {
 process haplotypeCaller {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-  storeDir "$baseDir/output/GATK_germline_cohort/haplotypeCaller"
+  storeDir "$baseDir/output/GATK_germline_single/haplotypeCaller"
   input:
 	file bam from haplotype_bam_ch
   output:
@@ -108,7 +108,7 @@ process CNNscoreVariants {
 }
 
 process FilterVariantTranches {
-  storeDir "$baseDir/output/GATK_germline_cohort/filtered_vcf"
+  storeDir "$baseDir/output/GATK_germline_single/haplotypeCaller"
 	input:
 	file vcf from filterVCF_ch
 	output:
@@ -136,7 +136,7 @@ process FilterVariantTranches {
 
 // needs samttools
 process zip {
-  storeDir "$baseDir/output/GATK_germline_cohort/filtered_vcf"
+  storeDir "$baseDir/output/GATK_germline_single/haplotypeCaller"
 	input:
 	file zip from zip_ch
 	output:
@@ -151,7 +151,7 @@ process zip {
 
 // use bcftools which one?? normal conda version
 process merge_vcf {
-  storeDir "$baseDir/output/GATK_germline_cohort/filtered_vcf"
+  storeDir "$baseDir/output/GATK_germline_single/haplotypeCaller"
 	input:
 	file vcf2 from merge2_ch.collect()
 	file index2 from merge3_ch.collect()

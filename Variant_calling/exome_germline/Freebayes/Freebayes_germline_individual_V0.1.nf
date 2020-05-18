@@ -74,18 +74,18 @@ process zip {
 
 //change py to bin dir
 process combine_gvcf {
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
+
   storeDir "$baseDir/output/freebayes"
   input:
   file vcf from merge_ch.collect()
 	file index from csi_ch.collect()
   output:
-  file "${projectname}_combined.g.vcf.gz" into index101_ch
+  file "${projectname}_combined_freebayes.vcf.gz" into index101_ch
   script:
   """
 	mkdir -p tmp
-  python $baseDir/bin/GATK_CombineGVCF.py -V '${vcf}' -O ${projectname}_combined_freebayes.vcf.gz -R $genome_fasta
+  python $baseDir/bin/picard_mergeVCFs.py -V '${vcf}' -O ${projectname}_combined_freebayes.vcf.gz
+	cp ${projectname}_combined_freebayes.vcf.gz $baseDir/output/VCF_collect
   """
 }
 
@@ -98,10 +98,8 @@ process bam_index {
 	file vcf from index101_ch
 	output:
 	file "${vcf}.csi"
-	file "${projectname}_freebayes.vcf.gz"
 	script:
 	"""
-	cp ${vcf} ${projectname}_freebayes.vcf.gz
 	bcftools index ${vcf}
 	"""
 }
