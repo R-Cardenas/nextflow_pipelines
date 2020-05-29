@@ -14,7 +14,7 @@ index_ch.into {index2_ch; index3_ch}
 
 
 process vcf_stats {
-  storeDir "$baseDir/output/VCF_collect/overlap_stats"
+  storeDir "$baseDir/output/VCF_collect"
   input:
   file vcf from vcf2_ch.collect()
   file index from index2_ch.collect()
@@ -26,8 +26,9 @@ process vcf_stats {
   """
 }
 
+
 process awks_stats {
-  storeDir "$baseDir/output/VCF_collect/overlap_stats"
+  storeDir "$baseDir/output/VCF_collect"
   input:
   file vchk from stats_ch
   output:
@@ -51,8 +52,7 @@ process overlap_stats {
   file "snp_venn_${projectname}.jpg"
   script:
   """
-  chmod +x ${baseDir}/bin/bcftools_stat_plot.R
-  ${baseDir}/bin/bcftools_stat_plot.R \
+  /bcftools_stat_plot.R \
   -I ${snps} \
   -D ${id} \
   -o snp_venn_${projectname}.jpg \
@@ -82,7 +82,7 @@ process functotator {
   input:
   file vcf from functotator_ch
   output:
-  file "${vcf.baseName}.maf" into (maf_ch, maf2_ch)
+  file "${vcf.baseName}.maf" into maf_ch
   script:
   """
   gatk IndexFeatureFile -F ${vcf}
@@ -96,41 +96,6 @@ process functotator {
    --ref-version hg38
   """
 }
-
-process somalier{
-  storeDir "$baseDir/output/somalier"
-  input:
-  file vcf from somalier_ch
-  file x from maf2_ch
-  output:
-	file "*.html" into som_ch
-  script:
-  """
-	mkdir -p $baseDir/output/VCF_collect/somalier/somalier_files
-	wget -P $baseDir/output/VCF_collect/somalier/somalier_files https://github.com/brentp/somalier/files/3412456/sites.hg38.vcf.gz
-
-	somalier extract -d $baseDir/output/somalier \
-	--sites $baseDir/output/VCF_collect/somalier/somalier_files/sites.hg38.vcf.gz \
-	-f $genome_fasta \
-	${vcf}
-
-	somalier relate --ped $baseDir/chole_batch2.ped  $baseDir/output/somalier/*.somalier
-
-	wget -P $baseDir/output/VCF_collect/somalier/somalier_files \
-	https://raw.githubusercontent.com/brentp/somalier/master/scripts/ancestry-labels-1kg.tsv
-
-	wget -P $baseDir/output/VCF_collect/somalier/somalier_files \
-	https://zenodo.org/record/3479773/files/1kg.somalier.tar.gz?download=1
-	tar -xzf $baseDir/output/VCF_collect/somalier/somalier_files/1kg.somalier.tar.gz
-
-	somalier ancestry --labels $baseDir/output/VCF_collect/somalier/somalier_files/ancestry-labels-1kg.tsv \
-	$baseDir/output/VCF_collect/somalier/somalier_files/1kg-somalier/*.somalier ++ $baseDir/output/somalier/*.somalier
-  """
-}
-
-
-
-
 
 process maf_header {
   storeDir "$baseDir/output/functotator"
