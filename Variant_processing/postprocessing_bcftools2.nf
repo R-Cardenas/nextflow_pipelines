@@ -22,7 +22,7 @@ process vcf_stats {
   file "${projectname}_bcf_stats.vchk" into stats_ch
   script:
   """
-  bcftools stats -c both ${vcf} > ${projectname}_bcf_stats.vchk
+  bcftools stats -c indels ${vcf} > ${projectname}_bcf_stats.vchk
   """
 }
 
@@ -67,83 +67,38 @@ process isec {
   file vcf from vcf3_ch.collect()
   file index from index3_ch.collect()
   output:
-  file "${projectname}_merged.vcf" into (functotator_ch, somalier_ch)
+  file "${projectname}_merged.vcf" into vep_ch
   script:
   """
   mkdir -p tmp
-  bcftools isec -c both ${vcf} -o ${projectname}_merged.vcf -p tmp
+  bcftools isec -c indels ${vcf} -o ${projectname}_merged.vcf -p tmp
   mv tmp/0002.vcf ./${projectname}_merged.vcf
   rm -fr tmp
   """
 }
-// add to config
-process functotator {
-  storeDir "$baseDir/output/functotator"
+// you may want to repeat this  but to create the VCF files also
+process VEP {
+  storeDir "$baseDir/output/VCF_collect/VEP"
   input:
-  file vcf from functotator_ch
+  file vcf from vep_ch
   output:
-  file "${vcf.baseName}.maf" into maf_ch
+  file "${vcf.simpleName}_VEP.txt"
   script:
   """
-  gatk IndexFeatureFile -F ${vcf}
-
-  gatk Funcotator \
-   -R /var/spool/mail/cgpwgs_ref/GRCh38/core_ref_GRCh38_hla_decoy_ebv/genome.fa \
-   -V ${vcf} \
-   -O ${vcf.baseName}.maf \
-   --output-file-format MAF \
-   --data-sources-path /var/spool/mail/GATK_functotator_files/funcotator_dataSources.v1.6.20190124g \
-   --ref-version hg38
-  """
-}
-
-process maf_header {
-  storeDir "$baseDir/output/functotator"
-  input:
-  file maf from maf_ch
-  output:
-  file "${maf.simpleName}_noheader.maf" into allele_frequency_ch
-  script:
-  """
-  awk '!/\\#/' ${maf} > ${maf.simpleName}_noheader.maf
-  """
-}
-
-process gnomAD_AF {
-  storeDir "$baseDir/output/functotator"
-  input:
-  file dom from som_ch
-  file maf from allele_frequency_ch
-  output:
-  file "${projectname}_filtered.maf" into maftools_ch
-  script:
-  """
-  chmod +x $baseDir/bin/gnomAD_AF_MAF.R
-  $baseDir/bin/gnomAD_AF_MAF.R \
-  -f ${maf} \
-  -E $AF_group1 \
-  -AF $AF1 \
-  -x $AF_group2 \
-  -y $AF2 \
-  -o $projectname \
-  -D $DP
-  """
-}
-
-process maftools {
-  storeDir "$baseDir/output/functotator"
-  input:
-  file maf from maftools_ch
-  output:
-  file "${projectname}_variant_summary.jpg"
-  file "${projectname}_oncoplot.jpg"
-  file "${projectname}_titv.jpg"
-  file "${projectname}_VAF.jpg"
-  script:
-  """
-  chmod +x $baseDir/bin/maftools.R
-  $baseDir/bin/maftools.R \
-  -f ${maf}
-  -o $projectname
+  vep -i project1_merged.vcf \
+  -o project1_merged_VEP.txt \
+  --cache homo_sapiens \
+  --force_overwrite \
+  --sift b \
+  --polyphen b \
+  --variant_class \
+  --regulatory \
+  --af_gnomad \
+  --domains \
+  --tab \
+  --show_ref_allele \
+  --no_headers \
+  --everything \
+  --verbose
   """
 }

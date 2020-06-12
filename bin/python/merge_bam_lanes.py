@@ -4,10 +4,11 @@
 
 import os
 import pandas as pd
-
+from pathlib import Path
+import time
 
 ## import the data sheet provided and extract unique sample names
-df = pd.read_csv("../williams_batch2_info.csv")
+df = pd.read_csv("williams_batch2_info.csv")
 
 list1 = list(df['Samples_name'])
 unique = list(dict.fromkeys(list1))
@@ -15,15 +16,35 @@ unique = list(dict.fromkeys(list1))
 print(unique)
 # The function that will run the merge bams with the same sample name from CSV
 for i in unique:
-    script = "samtools merge " + i + "_merged.bam " + i + "*.rename.bam -@ 15"
-    print(script)
-    #os.system(script)
 
-    # Will rename the SM bam field what is called in the CSV file
-    bam_name = i + "_merged.bam"
-
-    script2 = 'samtools view -H ' + bam_name + ' | sed -e "s/SM:[^\\t]*/SM:'+i+'/g" -e "s/ID:[^\\t]*/ID:'+i+'/g" | samtools reheader - ' + bam_name + ' > ' + i + "_merge.rename.bam"
-    #os.system(script2)
+    script = '"samtools merge ' + i + '_merged.bam ' + i + '*.sorted.bam -@ 5"'
+    script2 = 'bsub -q long-ib -M 20000 -R"rusage[mem=20000]" -J MERGE ' + script
     print(script2)
+    os.system(script2)
+    time.sleep(180)
 
+def loop():
+    for i in unique:
+        file = i + "_merged.bam"
+        if os.path.isfile(file):
+            print ("File exist")
+        else:
+            print('file does not exist yet')
+            time.sleep(360)
+            loop()
 
+def size():
+    for i in unique:
+        file = i + "_merged.bam"
+        size1 = os.stat(file).st_size
+        time.sleep(180)
+        size2 = os.stat(file).st_size
+        if size1 == size2:
+            print("files are the same size")
+            os.system("echo 'size1, size2 " + size1 + size2 + file + "' >> size.log")
+        else:
+            size()
+
+loop()
+size()
+time.sleep(500)

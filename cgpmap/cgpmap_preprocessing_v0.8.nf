@@ -60,7 +60,12 @@ process fqtools{
 	fqtools -d header ${read1} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${read1.simpleName}.txt
 	fqtools -d header ${read2} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${read2.simpleName}.txt
 
-	python $baseDir/fastq2config_cgpmap.py --fq1 ${read1.simpleName}.txt --fq2 ${read2.simpleName}.txt \
+	mkdir -p bin
+	wget -O fastq2config_cgpmap.py \
+	https://raw.githubusercontent.com/R-Cardenas/nextflow_pipelines/master/bin/python/fastq2config_cgpmap.py?token=ANVRCNOEZWAL7AZE7LF6OG264N5JU
+	mv fastq2config_cgpmap.py bin
+
+	python $baseDir/bin/fastq2config_cgpmap.py --fq1 ${read1.simpleName}.txt --fq2 ${read2.simpleName}.txt \
 	--n1 ${read1} --n2 ${read2} --o ${read1}.yaml
 	"""
 }
@@ -125,6 +130,7 @@ process merge_lanes{
 	file "*merged.bam" into dup_ch
 	script:
 	"""
+	wget -O 
 	module add python/anaconda/4.2/3.5
 	python $baseDir/bin/merge_bam_lanes.py
 	"""
