@@ -35,24 +35,21 @@ process somalier{
 	file "*.html"
   script:
   """
-	mkdir -p $baseDir/output/VCF_collect/somalier/somalier_files
-	wget -P $baseDir/output/VCF_collect/somalier/somalier_files https://github.com/brentp/somalier/files/3412456/sites.hg38.vcf.gz
+	mkdir -p bin
+	wget -P bin/ https://github.com/brentp/somalier/files/3412456/sites.hg38.vcf.gz
 
-	somalier extract -d $baseDir/output/somalier \
-	--sites $baseDir/output/VCF_collect/somalier/somalier_files/sites.hg38.vcf.gz \
-	-f $genome_fasta \
-	${vcf}
+	for f in *.cram; do
+    somalier extract -d extracted/ --sites bin/sites.hg38.vcf.gz -f -f $genome_fasta \$f
+	done
 
-	somalier relate --ped $baseDir/chole_batch2.ped  $baseDir/output/somalier/*.somalier
+	somalier relate --ped $baseDir/bin/chole_batch2.ped  bin/*.somalier
 
-	wget -P $baseDir/output/VCF_collect/somalier/somalier_files \
-	https://raw.githubusercontent.com/brentp/somalier/master/scripts/ancestry-labels-1kg.tsv
+	wget -P ancestry_files https://raw.githubusercontent.com/brentp/somalier/master/scripts/ancestry-labels-1kg.tsv
 
-	wget -P $baseDir/output/VCF_collect/somalier/somalier_files \
-	https://zenodo.org/record/3479773/files/1kg.somalier.tar.gz?download=1
-	tar -xzf $baseDir/output/VCF_collect/somalier/somalier_files/1kg.somalier.tar.gz
+	wget https://zenodo.org/record/3479773/files/1kg.somalier.tar.gz
+	tar -xzf 1kg.somalier.tar.gz
 
-	somalier ancestry --labels $baseDir/output/VCF_collect/somalier/somalier_files/ancestry-labels-1kg.tsv \
-	$baseDir/output/VCF_collect/somalier/somalier_files/1kg-somalier/*.somalier ++ $baseDir/output/somalier/*.somalier
+	somalier ancestry --labels ancestry_files/ancestry-labels-1kg.tsv \
+	1kg-somalier/*.somalier ++ extracted/*.somalier
   """
 }

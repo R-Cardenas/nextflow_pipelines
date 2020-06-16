@@ -3,8 +3,8 @@
  */
 
 // Input Reads
-params.read1 = "/gpfs/afm/cg_pipelines/Datasets/Cholesteatoma batch 2/release_noclean/RawData/**/*{1,2}.fq.gz"
-//params.read1 = "$baseDir/input/*{1,2}.fq.gz"
+params.read1 = "/gpfs/afm/cg_pipelines/Pipelines/Chole_batch1_FASTQ/*{1,2}.fq.gz"
+
 
 read1_ch = Channel .fromFilePairs( params.read1 )
 read1_ch.into { read2_ch; read3_ch }
@@ -28,9 +28,14 @@ println """\
          .stripIndent()
 
 
+myLongCmdline = "git clone https://github.com/R-Cardenas/nextflow_pipelines.git"
+result = myLongCmdline.execute().text
+
 // link for adding fastp if the pipe works https://github.com/nextflow-io/nextflow/issues/682
 process trim_galore{
-  storeDir "$baseDir/output/cgpMAP/trimmomatic"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  storeDir "$baseDir/output/cgpMAP/trim_galore"
 	input:
 	tuple val(read2), file(reads) from read2_ch
 	output:
@@ -38,34 +43,55 @@ process trim_galore{
 	file "${reads[1].simpleName}.fq.gz" into (read10_ch, read12_ch)
 	script:
 	"""
-	module add trimgalore/0.4.3
-	trim_galore --paired ${reads[0]} ${reads[1]} \
-	--fastqc -a $adapter1 \
-	-a2 $adapter2
+	mkdir -p $baseDir/logs
+
+	trim_galore --paired \
+	--fastqc --illumina \
+	${reads[0]} ${reads[1]}
 
 	mv ${reads[0].simpleName}_val_1.fq.gz ${reads[0].simpleName}.fq.gz
 	mv ${reads[1].simpleName}_val_2.fq.gz ${reads[1].simpleName}.fq.gz
+
 	"""
 }
 
+
 process fqtools{
-  storeDir "$baseDir/output/cgpMAP/trimmomatic"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  storeDir "$baseDir/output/cgpMAP/trim_galore"
 	input:
 	file read1 from read7_ch
 	file read2 from read12_ch
 	output:
 	file "${read1}.yaml" into yaml_ch
+	file("fqtools_WARNING_?.txt") optional true
 	script:
 	"""
 	fqtools -d header ${read1} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${read1.simpleName}.txt
-	fqtools -d header ${read2} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${read2.simpleName}.txt
 
-	mkdir -p bin
-	wget -O fastq2config_cgpmap.py \
-	https://raw.githubusercontent.com/R-Cardenas/nextflow_pipelines/master/bin/python/fastq2config_cgpmap.py?token=ANVRCNOEZWAL7AZE7LF6OG264N5JU
-	mv fastq2config_cgpmap.py bin
+	### Counts lines in file and will repeat if it is empty
+	words=`wc -l ${read1.simpleName}.txt  | awk '{print \$1}'`;
+	if [ \$words -eq 0 ]
+	then
+	fqtools -d header ${read1} | head -1 > ${read1.simpleName}.txt
+	else
+	echo 'alls good!'
+	fi
 
-	python $baseDir/bin/fastq2config_cgpmap.py --fq1 ${read1.simpleName}.txt --fq2 ${read2.simpleName}.txt \
+	### Counts lines in file and will repeat if it is empty
+	fqtools -d header ${read2} | grep ":[`§`,A,T,G]*[+][C,A,T,G]" | head -1 > ${read2.simpleName}.txt
+	words=`wc -l ${read2.simpleName}.txt  | awk '{print \$1}'`;
+	if [ \$words -eq 0 ]
+	then
+	fqtools -d header ${read2} | head -1 > ${read2.simpleName}.txt
+	else
+	echo 'alls good!'
+	fi
+
+	cp fqtools_WARNING_?.txt $baseDir/logs
+	python $baseDir/nextflow_pipelines/bin/python/fastq2config_cgpmap.py \
+	--fq1 ${read1.simpleName}.txt --fq2 ${read2.simpleName}.txt \
 	--n1 ${read1} --n2 ${read2} --o ${read1}.yaml
 	"""
 }
@@ -83,7 +109,7 @@ process cgpMAP {
   script:
   """
 
-	name=\$(echo '${read2}' | sed -e 's/_.*//' -e 's/.*\\///')
+  name=\$(echo '${read2}' | sed -e 's/.*[/]//' -e 's/_.*//')
 
   ds-cgpmap.pl  \
   -outdir $baseDir/output/cgpMAP/${read1.simpleName} \
@@ -98,6 +124,8 @@ process cgpMAP {
 	$baseDir/output/cgpMAP/${read1.simpleName}/${read1.simpleName}.bam
 
 	echo 'fq1: ${read1} fq2: ${read2} bam_name: ${read1.simpleName}' >> $baseDir/${projectname}_cgpmap_samples.log
+	ls -l  ${read1} >> $baseDir/logs/symbolic_test_fastq.log
+	ls -l  ${read2} >> $baseDir/logs/symbolic_test_fastq.log
   """
 }
 
@@ -109,7 +137,7 @@ process sam_sort {
   input:
   file bam from cgp_ch
   output:
-  file "${bam.simpleName}.sorted.bam" into merge_ch
+  file "${bam.simpleName}.sorted.bam" into dup_ch
   script:
   """
 	mkdir -p tmp
@@ -119,22 +147,6 @@ process sam_sort {
   """
 }
 
-process merge_lanes{
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
-	storeDir "$baseDir/output/BAM/merged_lanes"
-	input:
-	file bam from merge_ch.collect()
-	file csv from csv_ch
-	output:
-	file "*merged.bam" into dup_ch
-	script:
-	"""
-	wget -O 
-	module add python/anaconda/4.2/3.5
-	python $baseDir/bin/merge_bam_lanes.py
-	"""
-}
 
 process picard_pcr_removal {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
@@ -143,7 +155,7 @@ process picard_pcr_removal {
   input:
   file bam from dup_ch.flatten()
   output:
-  file "${bam.simpleName}.rmd.bam" into (index1_ch, index_2ch, hs_ch, bam10_ch, bam11_ch)
+  file "${bam.simpleName}.rmd.bam" into (index1_ch, index_2ch, hs_ch, bam10_ch, bam11_ch, bam12_ch)
 	file "${bam.simpleName}.log"
   script:
   """
@@ -177,7 +189,7 @@ process bam_index {
 process collect_insert_size {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-	storeDir "$baseDir/output/BAM/merged_lanes"
+	storeDir "$baseDir/output/BAM/insert_size"
   input:
   file bam from index_2ch
   output:
@@ -196,7 +208,7 @@ process collect_insert_size {
 process hybrid_stats {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-	storeDir "$baseDir/output/BAM/merged_lanes"
+	storeDir "$baseDir/output/BAM/hybrid_stats"
   input:
   file bam from hs_ch
   output:
@@ -216,7 +228,7 @@ process hybrid_stats {
 process alignment_stats{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-	storeDir "$baseDir/output/BAM/merged_lanes"
+	storeDir "$baseDir/output/BAM/alignment_stats"
 	input:
 	file bam from bam10_ch
 	output:
@@ -236,7 +248,7 @@ process alignment_stats{
 process verifybamid{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-	storeDir "$baseDir/output/trim/verifyBamID"
+	storeDir "$baseDir/output/BAM/verifyBamID"
 	input:
 	file bam from bam11_ch
 	file idx from index_3ch.collect()
@@ -247,6 +259,37 @@ process verifybamid{
 	verifyBamID --vcf $verifybamid --bam ${bam} --out ${bam.simpleName} --maxDepth 1000 --precise --verbose
 	"""
 }
+
+
+
+process somalier{
+  storeDir "$baseDir/output/BAM/somalier"
+  input:
+  file bam from bam12_ch.collect()
+  output:
+	file "*.html"
+  script:
+  """
+	mkdir -p bin
+	wget -P bin/ https://github.com/brentp/somalier/files/3412456/sites.hg38.vcf.gz
+
+	for f in *.cram; do
+    somalier extract -d extracted/ --sites bin/sites.hg38.vcf.gz -f -f $genome_fasta \$f
+	done
+
+	somalier relate --ped $baseDir/bin/chole_batch2.ped  bin/*.somalier
+
+	wget -P ancestry_files https://raw.githubusercontent.com/brentp/somalier/master/scripts/ancestry-labels-1kg.tsv
+
+	wget https://zenodo.org/record/3479773/files/1kg.somalier.tar.gz
+	tar -xzf 1kg.somalier.tar.gz
+
+	somalier ancestry --labels ancestry_files/ancestry-labels-1kg.tsv \
+	1kg-somalier/*.somalier ++ extracted/*.somalier
+  """
+}
+
+
 
 workflow.onComplete {
 	// create log files and record output

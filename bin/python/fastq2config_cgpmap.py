@@ -43,6 +43,8 @@ name1 = name1[0]
 name2 = str.split(f2,"_")
 name2 = name2[0]
 
+print(name1)
+
 if name1 == name2:
     print("names are identical")
 else:
@@ -52,13 +54,40 @@ else:
 SM = "SM: " + name1 + "\n"
 PL = "    PL: ILLUMINA" + "\n"
 RG = "READGRPS:" + "\n"
+
+### Determining if seq primer is on fq read..
+# if it is not present then it will replace with a null and write a file to log
+
+try:
+    f1_list[9]
+except IndexError:
+    seq1 = "NULL"
+    file1 = open("fqtools_WARNING_1.txt","w")
+    warning = "Seq primer set to NULL. LB (library) field may not be accurate."
+    file1.writelines(warning)
+    file1.close()
+else:
+	seq1 = f1_list[9]
+
+try:
+    f2_list[9]
+except IndexError:
+    seq2 = "NULL"
+    file2 = open("fqtools_WARNING_2.txt","w")
+    warning = "Seq primer set to NULL. LB (library) field may not be accurate."
+    file2.writelines(warning)
+    file2.close()
+else:
+	seq2 = f2_list[9]
+
+## Creatin the yaml file
 #FQ1
 FQ1 = "  " + n1 + ":\n"
-LB1 = "    LB: " + name1 + "_" + f1_list[9] + "\n"
+LB1 = "    LB: " + name1 + "_" + seq1 + "\n"
 PU1 = "    PU: " + f1_list[2] + "." + f1_list[3] + "\n"
 #FQ2
 FQ2 = "  " + n2 + ":\n"
-LB2 = "    LB: " + name2 + "_" + f2_list[9] + "\n"
+LB2 = "    LB: " + name2 + "_" + seq2 + "\n"
 PU2 = "    PU: " + f2_list[2] + "." + f2_list[3] + "\n"
 # ## Forming the final YAML file for cgpmap and save file
 yaml = SM + RG + FQ1 + PL + LB1 + PU1 + FQ2 + PL + LB2 + PU2
