@@ -253,7 +253,11 @@ process verifybamid{
 	file bam from bam11_ch
 	file idx from index_3ch.collect()
 	output:
-	file "verifybam*"
+	file "*.depthRG"
+	file "*.depthSM"
+	file "*.log"
+	file "*.selfRG"
+	file "*.selfSM"
 	script:
 	"""
 	verifyBamID --vcf $verifybamid --bam ${bam} --out ${bam.simpleName} --maxDepth 1000 --precise --verbose
