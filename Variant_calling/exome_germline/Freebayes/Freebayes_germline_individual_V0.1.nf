@@ -1,4 +1,4 @@
-
+/// This works completely 180620
 
 /*
  * create a channel for fastq pairs
@@ -50,11 +50,11 @@ process vcf_filter {
   file "${vcf}_filtered_freebayes.vcf" into zip2_ch
   script:
   """
-  vcffilter -f \
-  "QUAL > 1 & QUAL / AO > 10 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1" \
+	bcftools filter -i 'QUAL>5 & INFO/DP>5 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1' \
   ${vcf} > ${vcf}_filtered_freebayes.vcf
   """
 }
+
 
 process zip {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
@@ -75,7 +75,7 @@ process zip {
 //change py to bin dir
 process combine_gvcf {
 
-  storeDir "$baseDir/output/freebayes"
+  storeDir "$baseDir/output/VCF_collect"
   input:
   file vcf from merge_ch.collect()
 	file index from csi_ch.collect()
@@ -84,10 +84,7 @@ process combine_gvcf {
   script:
   """
 	mkdir -p tmp
-  python $baseDir/nextflow_pipelines/bin/python/picard_mergeVCFs.py -V '${vcf}' \
-	-O ${projectname}_combined_freebayes.vcf.gz
-
-	cp ${projectname}_combined_freebayes.vcf.gz $baseDir/output/VCF_collect
+	bcftools merge -m none -O z -o ${projectname}_combined_freebayes.vcf.gz *.vcf.gz
   """
 }
 
@@ -117,7 +114,7 @@ workflow.onComplete {
 	 Freebayes - completed
 	 (Reference - $genome_fasta)
 	 VCFTools - completed
-	 (Parameters: "QUAL > 1 & QUAL / AO > 10 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1")
+	 (Parameters: "bcftools filter -i 'QUAL>5 & INFO/DP>5 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1' )
 	 Bgzip - completed
 	 BcfTools Index - completed
 	 ' >> $baseDir/${projectname}_log.txt
