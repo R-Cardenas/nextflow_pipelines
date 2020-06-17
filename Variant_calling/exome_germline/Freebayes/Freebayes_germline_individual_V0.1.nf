@@ -84,7 +84,9 @@ process combine_gvcf {
   script:
   """
 	mkdir -p tmp
-  python $baseDir/bin/picard_mergeVCFs.py -V '${vcf}' -O ${projectname}_combined_freebayes.vcf.gz
+  python $baseDir/nextflow_pipelines/bin/python/picard_mergeVCFs.py -V '${vcf}' \
+	-O ${projectname}_combined_freebayes.vcf.gz
+
 	cp ${projectname}_combined_freebayes.vcf.gz $baseDir/output/VCF_collect
   """
 }
