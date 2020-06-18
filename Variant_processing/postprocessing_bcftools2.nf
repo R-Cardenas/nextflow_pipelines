@@ -67,7 +67,7 @@ process isec {
   file vcf from vcf3_ch.collect()
   file index from index3_ch.collect()
   output:
-  file "${projectname}_merged.vcf" into vep_ch
+  file "${projectname}_merged.vcf" into (vep_ch, maf_ch)
   script:
   """
   mkdir -p tmp
@@ -85,8 +85,9 @@ process VEP {
   file "${vcf.simpleName}_VEP.txt"
   script:
   """
-  vep -i project1_merged.vcf \
-  -o project1_merged_VEP.txt \
+  /ensembl-vep/vep -i ${vcf} \
+  --dir /var/spool/mail/VEP/.vep \
+  -o ${vcf.simpleName}_VEP.txt \
   --cache homo_sapiens \
   --force_overwrite \
   --sift b \
@@ -100,5 +101,25 @@ process VEP {
   --no_headers \
   --everything \
   --verbose
+  """
+}
+
+process functotator {
+  storeDir "$baseDir/output/VCF_collect/functotator"
+  input:
+  file vcf from maf_ch
+  output:
+  file "${vcf.baseName}.maf"
+  script:
+  """
+  gatk IndexFeatureFile -F ${vcf}
+
+  gatk Funcotator \
+   -R /var/spool/mail/cgpwgs_ref/GRCh38/core_ref_GRCh38_hla_decoy_ebv/genome.fa \
+   -V ${vcf} \
+   -O ${vcf.baseName}.maf \
+   --output-file-format MAF \
+   --data-sources-path /var/spool/mail/GATK_functotator_files/funcotator_dataSources.v1.6.20190124g \
+   --ref-version hg38
   """
 }
