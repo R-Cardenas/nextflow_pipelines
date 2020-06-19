@@ -67,7 +67,7 @@ process isec {
   file vcf from vcf3_ch.collect()
   file index from index3_ch.collect()
   output:
-  file "${projectname}_merged.vcf" into (vep_ch, maf_ch)
+  file "${projectname}_merged.vcf" into split_ch
   script:
   """
   mkdir -p tmp
@@ -76,11 +76,28 @@ process isec {
   rm -fr tmp
   """
 }
+
+process split_vcf {
+  storeDir "$baseDir/output/VCF_collect/split_vcf"
+  input:
+  file vcf from split_ch
+  output:
+  file "*.vcf.gz" into (vep_ch, maf_ch)
+  script:
+  """
+  for file in *.vcf*; do
+    for sample in `bcftools query -l \$file`; do
+      bcftools view -c1 -Oz -s \$sample -o \${file/.vcf*/.\$sample.vcf.gz} \$file
+    done
+  done
+  """
+}
+
 // you may want to repeat this  but to create the VCF files also
 process VEP {
-  storeDir "$baseDir/output/VCF_collect/VEP"
+  storeDir "$baseDir/output/VCF_collect/split_vcf/VEP"
   input:
-  file vcf from vep_ch
+  file vcf from vep_ch.flatten()
   output:
   file "${vcf.simpleName}_VEP.txt"
   script:
@@ -99,17 +116,16 @@ process VEP {
   --tab \
   --show_ref_allele \
   --no_headers \
-  --everything \
   --verbose
   """
 }
 
 process functotator {
-  storeDir "$baseDir/output/VCF_collect/functotator"
+  storeDir "$baseDir/output/VCF_collect/split_vcf/functotator"
   input:
-  file vcf from maf_ch
+  file vcf from maf_ch.flatten()
   output:
-  file "${vcf.baseName}.maf"
+  file "${vcf.baseName}.maf" into header_ch
   script:
   """
   gatk IndexFeatureFile -F ${vcf}
@@ -121,5 +137,17 @@ process functotator {
    --output-file-format MAF \
    --data-sources-path /var/spool/mail/GATK_functotator_files/funcotator_dataSources.v1.6.20190124g \
    --ref-version hg38
+  """
+}
+
+process maf_header {
+  storeDir "$baseDir/output/split_vcf/functotator"
+  input:
+  file maf from header_ch
+  output:
+  file "${maf.simpleName}_noheader.maf" into allele_frequency_ch
+  script:
+  """
+  awk '!/\\#/' ${maf} > ${maf.simpleName}_noheader.maf
   """
 }
