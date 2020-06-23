@@ -82,7 +82,7 @@ process split_vcf {
   input:
   file vcf from split_ch
   output:
-  file "*.split.vcf" into (vep_ch, maf_ch)
+  file "*.split.vcf" into (vep_ch, vep_vcf_ch)
 
   script:
   """
@@ -124,12 +124,41 @@ process VEP {
   """
 }
 
+// you may want to repeat this  but to create the VCF files also
+process VEP2 {
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  storeDir "$baseDir/output/VCF_collect/split_vcf/VEP"
+  input:
+  file vcf from vep_vcf_ch.flatten()
+  output:
+  file "${vcf.baseName}_VEP.vcf" into vep2_filter_ch
+  script:
+  """
+  /ensembl-vep/vep -i ${vcf} \
+  --dir /var/spool/mail/VEP/.vep \
+  -o ${vcf.baseName}_VEP.vcf \
+  --cache homo_sapiens \
+  --sift b \
+  --polyphen b \
+  --variant_class \
+  --af_gnomad \
+  --hgvs \
+  --domains \
+  --vcf \
+  --show_ref_allele \
+  --symbol \
+  --nearest gene \
+  --verbose
+  """
+}
+
 process vep_filter {
   storeDir "$baseDir/output/VCF_collect/split_vcf/VEP"
   input:
   file txt from vep_filter_ch
   output:
-  file "${txt.baseName}_noheader.txt"
+  file "${txt.baseName}_filtered.txt" into vep2_ch
   script:
   """
   /ensembl-vep/filter_vep \
@@ -144,6 +173,27 @@ process vep_filter {
   """
 }
 
+process vep_filter2 {
+  storeDir "$baseDir/output/VCF_collect/split_vcf/VEP"
+  input:
+  file txt from vep2_filter_ch
+  output:
+  file "${txt.baseName}_filtered.txt"
+  script:
+  """
+  /ensembl-vep/filter_vep \
+  -i ${txt} \
+  -o ${txt.baseName}_filtered.txt \
+  --format vcf \
+  --filter "SIFT != tolerated" \
+  --filter "SIFT != benign" \
+  --filter "SIFT != Tolerated" \
+  --filter "SIFT != Benign" \
+  --filter "Exome_NFE_AF < 0.1" \
+  """
+}
+
+
 
 process vep_header {
   storeDir "$baseDir/output/VCF_collect/split_vcf/VEP"
@@ -157,38 +207,6 @@ process vep_header {
   """
 }
 
-process functotator {
-  storeDir "$baseDir/output/VCF_collect/split_vcf/functotator"
-  input:
-  file vcf from maf_ch.flatten()
-  output:
-  file "${vcf.baseName}.maf" into header_ch
-  script:
-  """
-  gatk IndexFeatureFile \
-     -F ${vcf}
-
-  gatk Funcotator \
-   -R /var/spool/mail/cgpwgs_ref/GRCh38/core_ref_GRCh38_hla_decoy_ebv/genome.fa \
-   -V ${vcf} \
-   -O ${vcf.baseName}.maf \
-   --output-file-format MAF \
-   --data-sources-path /var/spool/mail/GATK_functotator_files/funcotator_dataSources.v1.6.20190124g \
-   --ref-version hg38
-  """
-}
-
-process maf_header {
-  storeDir "$baseDir/output/split_vcf/functotator"
-  input:
-  file maf from header_ch
-  output:
-  file "${maf.baseName}_noheader.maf"
-  script:
-  """
-  awk '!/\\#/' ${maf} > ${maf.baseName}_noheader.maf
-  """
-}
 
 // you need to add VCF output
 //java -jar /snpEff/snpEff.jar GRCh38.86 chole_batch1_merged.vcf
