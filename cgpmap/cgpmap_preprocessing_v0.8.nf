@@ -277,7 +277,7 @@ process somalier{
 	mkdir -p bin
 	wget -P bin/ https://github.com/brentp/somalier/files/3412456/sites.hg38.vcf.gz
 
-	for f in *.cram; do
+	for f in *.bam; do
     somalier extract -d extracted/ --sites bin/sites.hg38.vcf.gz -f -f $genome_fasta \$f
 	done
 

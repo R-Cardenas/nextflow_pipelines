@@ -1,0 +1,37 @@
+
+params.vcf= "$baseDir/output/ALL_isec/*vchk"
+
+vcf_ch = Channel. fromPath (params.vcf)
+
+process awks_stats {
+  storeDir "$baseDir/output/ALL_isec/plots"
+  input:
+  file vchk from vcf_ch
+  output:
+  file "${vchk.simpleName}.SN.txt" into sn_ch
+  file "ID_${vchk.simpleName}.ID.txt" into id_ch
+  script:
+  """
+  awk '\$1 == "SN" {print}' ${vchk} > ${vchk.simpleName}.SN.txt
+  awk '\$1 == "ID" {print}' ${vchk} > ID_${vchk.simpleName}.ID.txt
+  """
+}
+
+
+process overlap_stats {
+  storeDir "$baseDir/output/ALL_isec/plots"
+  input:
+  file snps from sn_ch
+  file id from id_ch
+  output:
+  file "${snps.simpleName}_snps.jpg"
+  file "${id.simpleName}_indels.jpg"
+  script:
+  """
+  /bcftools_stat_plot.R \
+  -I ${snps} \
+  -D ${id} \
+  -o ${snps.simpleName}_snps.jpg \
+  -O ${id.simpleName}_indels.jpg
+  """
+}

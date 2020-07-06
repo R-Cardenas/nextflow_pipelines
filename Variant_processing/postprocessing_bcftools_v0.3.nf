@@ -72,8 +72,8 @@ process isec {
   """
   mkdir -p tmp
   bcftools isec -c indels ${vcf} -o ${projectname}_merged.vcf -p tmp
-  mv tmp/0001.vcf ./${projectname}_merged.vcf
-  rm -fr tmp
+  mv tmp/0003.vcf ./${projectname}_merged.vcf
+
   """
 }
 
@@ -82,7 +82,7 @@ process split_vcf {
   input:
   file vcf from split_ch
   output:
-  file "*.split.vcf" into (vep_ch, vep_vcf_ch)
+  file "*.split.vcf" into sort_vcf
 
   script:
   """
@@ -94,6 +94,25 @@ process split_vcf {
 
   """
 }
+
+process sort_vcf {
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+  maxRetries 6
+  storeDir "$baseDir/output/VCF_collect/split_vcf"
+  input:
+  file vcf from sort_vcf.flatten()
+  output:
+  file "${vcf.baseName}_sorted.vcf" into (vep_ch, vep_vcf_ch)
+  script:
+  """
+  mkdir -p tmp
+  bcftools sort -m 65G -O v -o ${vcf.baseName}_sorted.vcf ${vcf} -T tmp
+  rm -fr tmp
+  """
+
+}
+
+
 
 // you may want to repeat this  but to create the VCF files also
 process VEP {
@@ -109,17 +128,18 @@ process VEP {
   /ensembl-vep/vep -i ${vcf} \
   --dir /var/spool/mail/VEP/.vep \
   -o ${vcf.baseName}_VEP.txt \
+  --offline \
+  --fasta $VEP_fasta \
+  --fork 5 \
   --cache homo_sapiens \
-  --sift b \
-  --polyphen b \
+  --sift p \
+  --polyphen p \
   --variant_class \
   --af_gnomad \
-  --hgvs \
-  --domains \
+  --no_stats \
   --tab \
   --show_ref_allele \
   --symbol \
-  --nearest gene \
   --verbose
   """
 }
@@ -138,22 +158,25 @@ process VEP2 {
   /ensembl-vep/vep -i ${vcf} \
   --dir /var/spool/mail/VEP/.vep \
   -o ${vcf.baseName}_VEP.vcf \
+  --offline \
+  --fasta $VEP_fasta \
+  --fork 5 \
   --cache homo_sapiens \
-  --sift b \
-  --polyphen b \
+  --sift p \
+  --polyphen p \
   --variant_class \
   --af_gnomad \
-  --hgvs \
-  --domains \
+  --no_stats \
   --vcf \
   --show_ref_allele \
   --symbol \
-  --nearest gene \
   --verbose
   """
 }
 
 process vep_filter {
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+  maxRetries 6
   storeDir "$baseDir/output/VCF_collect/split_vcf/VEP"
   input:
   file txt from vep_filter_ch
@@ -166,35 +189,37 @@ process vep_filter {
   -o ${txt.baseName}_filtered.txt \
   --format tab \
   --filter "SIFT != tolerated" \
-  --filter "SIFT != benign" \
+  --filter "PolyPhen != benign" \
   --filter "SIFT != Tolerated" \
-  --filter "SIFT != Benign" \
-  --filter "Exome_NFE_AF < 0.1" \
+  --filter "PolyPhen != Benign" \
+  --filter "gnomAD_NFE_AF < 0.1" \
   """
 }
 
 process vep_filter2 {
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+  maxRetries 6
   storeDir "$baseDir/output/VCF_collect/split_vcf/VEP"
   input:
   file txt from vep2_filter_ch
   output:
-  file "${txt.baseName}_filtered.txt"
+  file "${txt.baseName}_filtered.vcf"
   script:
   """
   /ensembl-vep/filter_vep \
   -i ${txt} \
-  -o ${txt.baseName}_filtered.txt \
+  -o ${txt.baseName}_filtered.vcf \
   --format vcf \
   --filter "SIFT != tolerated" \
-  --filter "SIFT != benign" \
+  --filter "PolyPhen != benign" \
   --filter "SIFT != Tolerated" \
-  --filter "SIFT != Benign" \
-  --filter "Exome_NFE_AF < 0.1" \
+  --filter "PolyPhen != Benign" \
+  --filter "gnomAD_NFE_AF < 0.1" \
   """
 }
 
-
-
+///////////this is WRONG!!
+//#Uploaded_variation
 process vep_header {
   storeDir "$baseDir/output/VCF_collect/split_vcf/VEP"
   input:
@@ -203,6 +228,7 @@ process vep_header {
   file "${txt.baseName}_noheader.txt"
   script:
   """
+  sed -i 's/#Uploaded_variation/Uploaded_variation/g' ${txt}
   awk '!/\\#/' ${txt} > ${txt.baseName}_noheader.txt
   """
 }
