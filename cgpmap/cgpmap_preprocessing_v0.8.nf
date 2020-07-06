@@ -35,6 +35,7 @@ result = myLongCmdline.execute().text
 process trim_galore{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+	stageInMode = 'copy' // trim_galore doesnt like sym/hardlinks..
   storeDir "$baseDir/output/cgpMAP/trim_galore"
 	input:
 	tuple val(read2), file(reads) from read2_ch
@@ -52,6 +53,8 @@ process trim_galore{
 	mv ${reads[0].simpleName}_val_1.fq.gz ${reads[0].simpleName}.fq.gz
 	mv ${reads[1].simpleName}_val_2.fq.gz ${reads[1].simpleName}.fq.gz
 
+	rm -fr ${reads[0]} # remove the copied files to prevent memory loss
+	rm -fr ${reads[1]}
 	"""
 }
 
