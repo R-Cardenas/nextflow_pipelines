@@ -31,7 +31,7 @@ println """\
 myLongCmdline = "git clone https://github.com/R-Cardenas/nextflow_pipelines.git"
 result = myLongCmdline.execute().text
 
-// link for adding fastp if the pipe works https://github.com/nextflow-io/nextflow/issues/682
+
 process trim_galore{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
@@ -263,13 +263,20 @@ process verifybamid{
 	file "*.selfSM"
 	script:
 	"""
-	verifyBamID --vcf $verifybamid --bam ${bam} --out ${bam.simpleName} --maxDepth 1000 --precise --verbose
+	verifyBamID --vcf $verifybamid \
+	--bam ${bam} \
+	--out ${bam.simpleName} \
+	--maxDepth 1000 \
+	--precise \
+	--verbose
 	"""
 }
 
 
 
 process somalier{
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
   storeDir "$baseDir/output/BAM/somalier"
   input:
   file bam from bam12_ch.collect()
@@ -284,7 +291,7 @@ process somalier{
     somalier extract -d extracted/ --sites bin/sites.hg38.vcf.gz -f -f $genome_fasta \$f
 	done
 
-	somalier relate --ped $baseDir/bin/chole_batch2.ped  bin/*.somalier
+	somalier relate --ped $baseDir/bin/chole_batch2.ped  extracted/*.somalier
 
 	wget -P ancestry_files https://raw.githubusercontent.com/brentp/somalier/master/scripts/ancestry-labels-1kg.tsv
 
